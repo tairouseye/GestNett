@@ -1,0 +1,61 @@
+name: cleangest_senegal
+description: CleanGest Sénégal — Gestion PME de nettoyage D2SERVICES
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Supabase
+  supabase_flutter: ^2.8.4
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Navigation
+  go_router: ^14.6.3
+
+  # PDF generation
+  pdf: ^3.11.3
+  printing: ^5.14.2
+
+  # Charts
+  fl_chart: ^0.70.2
+
+  # Images & fichiers
+  image_picker: ^1.1.2
+  cached_network_image: ^3.4.1
+  file_picker: ^8.1.6
+
+  # Partage
+  share_plus: ^10.1.4
+  url_launcher: ^6.3.1
+
+  # Utilitaires
+  intl: ^0.20.2
+  path_provider: ^2.1.5
+  gap: ^3.0.1
+  shimmer: ^3.0.0
+
+  # Exports
+  excel: ^4.0.6
+
+  # Notifications locales
+  flutter_local_notifications: ^18.0.1
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/fonts/
