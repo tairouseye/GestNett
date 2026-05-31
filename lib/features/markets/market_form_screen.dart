@@ -33,8 +33,12 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
   }
 
   Future<void> _loadClients() async {
-    _clients = await ClientService().getAll();
-    if (mounted) setState(() => _loadingClients = false);
+    try {
+      final clients = await ClientService().getAll();
+      if (mounted) setState(() { _clients = clients; _loadingClients = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingClients = false);
+    }
   }
 
   Future<void> _pickDate(bool isStart) async {
@@ -104,20 +108,46 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Sélection client
-                    DropdownButtonFormField<String>(
-                      value: _selectedClientId,
-                      decoration: const InputDecoration(
-                        labelText: 'Client *',
-                        prefixIcon: Icon(Icons.business_outlined),
-                      ),
-                      items: _clients
-                          .map((c) => DropdownMenuItem(
-                              value: c.id, child: Text(c.nom)))
-                          .toList(),
-                      onChanged: (v) =>
-                          setState(() => _selectedClientId = v),
-                      validator: (v) =>
-                          v == null ? 'Sélectionne un client' : null,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedClientId,
+                            decoration: const InputDecoration(
+                              labelText: 'Client *',
+                              prefixIcon: Icon(Icons.business_outlined),
+                              hintText: 'Sélectionner un client',
+                            ),
+                            isExpanded: true,
+                            items: _clients.isEmpty
+                                ? [const DropdownMenuItem(
+                                    value: '__none__',
+                                    child: Text('Aucun client — créez-en un',
+                                        style: TextStyle(color: Colors.grey)))]
+                                : _clients.map((c) => DropdownMenuItem(
+                                    value: c.id,
+                                    child: Text(c.nom,
+                                        overflow: TextOverflow.ellipsis))).toList(),
+                            onChanged: (v) => setState(() =>
+                                _selectedClientId = v == '__none__' ? null : v),
+                            validator: (v) => (v == null || v == '__none__')
+                                ? 'Sélectionne un client' : null,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Tooltip(
+                          message: 'Nouveau client',
+                          child: IconButton(
+                            icon: const Icon(Icons.person_add_outlined,
+                                color: AppColors.g600),
+                            onPressed: () async {
+                              await context.push('/clients/new');
+                              await _loadClients();
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
 
