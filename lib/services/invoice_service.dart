@@ -77,7 +77,17 @@ class InvoiceService {
   }
 
   Future<int> _nextSequence() async {
-    final data = await _supabase.from('invoices').select('id').count();
-    return data.count + 1;
+    final year = DateTime.now().year;
+    final data = await _supabase
+        .from('invoices')
+        .select('numero')
+        .like('numero', 'FAC-$year-%')
+        .order('numero', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (data == null) return 1;
+    final last = data['numero'] as String;
+    final seq = int.tryParse(last.split('-').last) ?? 0;
+    return seq + 1;
   }
 }

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../models/expense.dart';
+import '../../models/invoice.dart';
 import '../../models/market.dart';
+import '../../services/expense_service.dart';
+import '../../services/invoice_service.dart';
 import '../../services/market_service.dart';
 
 class MarketDetailScreen extends StatefulWidget {
@@ -15,6 +20,8 @@ class MarketDetailScreen extends StatefulWidget {
 
 class _MarketDetailScreenState extends State<MarketDetailScreen> {
   Market? _market;
+  List<Invoice> _invoices = [];
+  List<Expense> _expenses = [];
   bool _loading = true;
 
   @override
@@ -24,19 +31,44 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
   }
 
   Future<void> _load() async {
-    final m = await MarketService().getById(widget.marketId);
-    if (mounted) setState(() { _market = m; _loading = false; });
+    setState(() => _loading = true);
+    final results = await Future.wait([
+      MarketService().getById(widget.marketId),
+      InvoiceService().getAll(),
+      ExpenseService().getByMarket(widget.marketId),
+    ]);
+    final market = results[0] as Market?;
+    final allInvoices = results[1] as List<Invoice>;
+    final expenses = results[2] as List<Expense>;
+    if (mounted) {
+      setState(() {
+        _market = market;
+        _invoices = allInvoices
+            .where((inv) => inv.marketId == widget.marketId)
+            .toList();
+        _expenses = expenses;
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _changeStatut(MarketStatut statut) async {
     setState(() => _loading = true);
-    final updated = await MarketService().updateStatut(widget.marketId, statut);
+    final updated =
+        await MarketService().updateStatut(widget.marketId, statut);
     if (mounted) setState(() { _market = updated; _loading = false; });
   }
+
+  double get _totalFacture =>
+      _invoices.fold(0.0, (s, inv) => s + inv.totalTtc);
+  double get _totalDepenses =>
+      _expenses.fold(0.0, (s, e) => s + e.montant);
+  double get _benefice => _totalFacture - _totalDepenses;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.g50,
       appBar: AppBar(
         title: Text(_market?.numero ?? 'Marché'),
         actions: [
@@ -45,15 +77,18 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
               icon: const Icon(Icons.more_vert),
               onSelected: _changeStatut,
               itemBuilder: (_) => MarketStatut.values
-                  .map((s) => PopupMenuItem(value: s, child: Text(s.label)))
+                  .map((s) => PopupMenuItem(
+                      value: s, child: Text(s.label)))
                   .toList(),
             ),
         ],
       ),
       floatingActionButton: _market != null
           ? FloatingActionButton.extended(
-              onPressed: () =>
-                  context.go('/invoices/new?marketId=${widget.marketId}'),
+              onPressed: () async {
+                await context.push('/invoices/new');
+                _load();
+              },
               icon: const Icon(Icons.receipt_long),
               label: const Text('Facturer'),
             )
@@ -62,14 +97,42 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _market == null
               ? const Center(child: Text('Marché introuvable'))
-              : _MarketBody(market: _market!),
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _MarketInfoCard(market: _market!),
+                      const SizedBox(height: 12),
+                      _BilanCard(
+                        montantTotal: _market!.montantTotal,
+                        totalFacture: _totalFacture,
+                        totalDepenses: _totalDepenses,
+                        benefice: _benefice,
+                      ),
+                      const SizedBox(height: 12),
+                      _InvoicesSection(
+                        invoices: _invoices,
+                        onTap: (id) async {
+                          await context.push('/invoices/$id');
+                          _load();
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _ExpensesSection(expenses: _expenses),
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
     );
   }
 }
 
-class _MarketBody extends StatelessWidget {
+// ── Info marché ───────────────────────────────────────────────────────────────
+
+class _MarketInfoCard extends StatelessWidget {
   final Market market;
-  const _MarketBody({required this.market});
+  const _MarketInfoCard({required this.market});
 
   @override
   Widget build(BuildContext context) {
@@ -79,88 +142,323 @@ class _MarketBody extends StatelessWidget {
       MarketStatut.termine   => AppColors.statusTermine,
       MarketStatut.suspendu  => AppColors.statusSuspendu,
     };
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Carte principale
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        market.clientNom ?? 'Client',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: statusColor.withOpacity(0.3)),
-                      ),
-                      child: Text(market.statut.label,
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: statusColor)),
-                    ),
-                  ],
+                Expanded(
+                  child: Text(market.clientNom ?? 'Client',
+                      style: Theme.of(context).textTheme.titleLarge),
                 ),
-                const Divider(height: 20),
-                _InfoRow('Numéro', market.numero),
-                _InfoRow('Montant total', Formatters.fcfa(market.montantTotal)),
-                if (market.description != null)
-                  _InfoRow('Prestation', market.description!),
-                if (market.dateDebut != null)
-                  _InfoRow('Début', Formatters.date(market.dateDebut!)),
-                if (market.dateFin != null)
-                  _InfoRow('Fin', Formatters.date(market.dateFin!)),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: statusColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(market.statut.label,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor)),
+                ),
               ],
             ),
-          ),
+            const Divider(height: 20),
+            _InfoRow('Numéro', market.numero),
+            _InfoRow('Montant contrat',
+                Formatters.fcfa(market.montantTotal)),
+            if (market.description != null)
+              _InfoRow('Prestation', market.description!),
+            if (market.dateDebut != null)
+              _InfoRow('Début', Formatters.date(market.dateDebut!)),
+            if (market.dateFin != null)
+              _InfoRow('Fin', Formatters.date(market.dateFin!)),
+          ],
         ),
-        const SizedBox(height: 16),
-        // Actions rapides
-        Row(
+      ),
+    );
+  }
+}
+
+// ── Bilan financier ───────────────────────────────────────────────────────────
+
+class _BilanCard extends StatelessWidget {
+  final double montantTotal, totalFacture, totalDepenses, benefice;
+  const _BilanCard({
+    required this.montantTotal,
+    required this.totalFacture,
+    required this.totalDepenses,
+    required this.benefice,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => context.go('/expenses'),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Dépense'),
-              ),
+            const Text('Bilan financier',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                _KpiBox('Contrat', Formatters.fcfa(montantTotal),
+                    AppColors.g700, Icons.handshake_outlined),
+                const SizedBox(width: 8),
+                _KpiBox('Facturé', Formatters.fcfa(totalFacture),
+                    AppColors.blue, Icons.receipt_long_outlined),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _KpiBox('Dépenses', Formatters.fcfa(totalDepenses),
+                    AppColors.red, Icons.trending_down_outlined),
+                const SizedBox(width: 8),
+                _KpiBox(
+                  'Bénéfice',
+                  Formatters.fcfa(benefice),
+                  benefice >= 0 ? AppColors.g600 : AppColors.red,
+                  benefice >= 0
+                      ? Icons.trending_up
+                      : Icons.trending_down,
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _KpiBox extends StatelessWidget {
+  final String label, value;
+  final Color color;
+  final IconData icon;
+  const _KpiBox(this.label, this.value, this.color, this.icon);
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: color,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: color),
+              overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    ),
+  );
+}
+
+// ── Factures liées ────────────────────────────────────────────────────────────
+
+class _InvoicesSection extends StatelessWidget {
+  final List<Invoice> invoices;
+  final void Function(String id) onTap;
+  const _InvoicesSection(
+      {required this.invoices, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text('Factures (${invoices.length})',
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 14)),
+        ),
+        if (invoices.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: const [
+                  Icon(Icons.receipt_long_outlined,
+                      color: AppColors.s300),
+                  SizedBox(width: 12),
+                  Text('Aucune facture sur ce marché',
+                      style: TextStyle(color: AppColors.s400)),
+                ],
+              ),
+            ),
+          )
+        else
+          ...invoices.map((inv) {
+            final sc = switch (inv.statut) {
+              InvoiceStatut.payee     => AppColors.g600,
+              InvoiceStatut.emise     => AppColors.orange,
+              InvoiceStatut.annulee   => AppColors.red,
+              InvoiceStatut.brouillon => AppColors.s400,
+            };
+            return Card(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: ListTile(
+                onTap: () => onTap(inv.id),
+                leading: CircleAvatar(
+                  backgroundColor: sc.withValues(alpha: 0.1),
+                  child: Icon(Icons.receipt_long,
+                      color: sc, size: 18),
+                ),
+                title: Text(inv.numero,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13)),
+                subtitle: Text(
+                  DateFormat('dd MMM yyyy', 'fr_FR')
+                      .format(inv.date),
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(Formatters.fcfa(inv.totalTtc),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: sc,
+                            fontSize: 12)),
+                    Text(inv.statut.label,
+                        style: TextStyle(
+                            fontSize: 9,
+                            color: sc,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            );
+          }),
       ],
     );
   }
 }
 
+// ── Dépenses ──────────────────────────────────────────────────────────────────
+
+class _ExpensesSection extends StatelessWidget {
+  final List<Expense> expenses;
+  const _ExpensesSection({required this.expenses});
+
+  @override
+  Widget build(BuildContext context) {
+    // Groupe par rubrique
+    final byType = <ExpenseType, double>{};
+    for (final e in expenses) {
+      byType[e.type] = (byType[e.type] ?? 0) + e.montant;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text('Dépenses (${expenses.length})',
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 14)),
+        ),
+        if (expenses.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: const [
+                  Icon(Icons.trending_down_outlined,
+                      color: AppColors.s300),
+                  SizedBox(width: 12),
+                  Text('Aucune dépense sur ce marché',
+                      style: TextStyle(color: AppColors.s400)),
+                ],
+              ),
+            ),
+          )
+        else ...[
+          // Résumé par rubrique
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: byType.entries.map((entry) {
+                  final t = entry.key;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(t.icon, size: 16, color: t.color),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(t.label,
+                                style: const TextStyle(fontSize: 12))),
+                        Text(Formatters.fcfa(entry.value),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: t.color)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
+  final String label, value;
   const _InfoRow(this.label, this.value);
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 5),
+    padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
           width: 110,
           child: Text(label,
-              style: const TextStyle(color: AppColors.s400, fontSize: 12)),
+              style: const TextStyle(
+                  color: AppColors.s400, fontSize: 12)),
         ),
         Expanded(
           child: Text(value,

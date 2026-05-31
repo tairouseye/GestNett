@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/invoice.dart';
@@ -47,7 +48,13 @@ class _InvoicesListScreenState extends State<InvoicesListScreen> {
                     padding: const EdgeInsets.all(16),
                     itemCount: _invoices.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => _InvoiceTile(invoice: _invoices[i]),
+                    itemBuilder: (_, i) => _InvoiceTile(
+                      invoice: _invoices[i],
+                      onTap: () async {
+                        await context.push('/invoices/${_invoices[i].id}');
+                        _load();
+                      },
+                    ),
                   ),
                 ),
     );
@@ -56,7 +63,8 @@ class _InvoicesListScreenState extends State<InvoicesListScreen> {
 
 class _InvoiceTile extends StatelessWidget {
   final Invoice invoice;
-  const _InvoiceTile({required this.invoice});
+  final VoidCallback onTap;
+  const _InvoiceTile({required this.invoice, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +75,10 @@ class _InvoiceTile extends StatelessWidget {
       InvoiceStatut.brouillon => AppColors.s400,
     };
 
-    return Container(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -133,6 +144,7 @@ class _InvoiceTile extends StatelessWidget {
             ],
           ),
         ],
+      ),
       ),
     );
   }

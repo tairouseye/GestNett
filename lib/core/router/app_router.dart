@@ -13,6 +13,7 @@ import '../../features/markets/market_detail_screen.dart';
 import '../../features/markets/market_form_screen.dart';
 import '../../features/invoices/invoices_list_screen.dart';
 import '../../features/invoices/invoice_wizard_screen.dart';
+import '../../features/invoices/invoice_detail_screen.dart';
 import '../../features/expenses/expenses_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../core/shell/app_shell.dart';
@@ -90,6 +91,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'new',
                 builder: (_, __) => const InvoiceWizardScreen(),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (_, state) => InvoiceDetailScreen(
+                  invoiceId: state.pathParameters['id']!,
+                ),
               ),
             ],
           ),

@@ -16,15 +16,19 @@ class PrestationLine {
 class InvoiceWizardData {
   String clientNom;
   String clientAdresse;
+  String? clientId;    // ID Supabase du client sélectionné
+  String? marketId;    // Marché associé (optionnel)
   List<PrestationLine> prestations;
-  double reductionPct;  // 0 = aucune réduction
-  bool applyTva;        // TVA 18%
+  double reductionPct;
+  bool applyTva;
   DateTime date;
   String numero;
 
   InvoiceWizardData({
     this.clientNom = '',
     this.clientAdresse = '',
+    this.clientId,
+    this.marketId,
     List<PrestationLine>? prestations,
     this.reductionPct = 0,
     this.applyTva = false,

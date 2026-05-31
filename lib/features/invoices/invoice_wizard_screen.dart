@@ -9,10 +9,13 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../services/invoice_service.dart';
 import '../../services/pdf_service.dart';
 import '../../services/storage_service.dart';
+import '../../models/invoice.dart';
 import 'invoice_wizard_data.dart';
 
 class InvoiceWizardScreen extends StatefulWidget {
@@ -312,11 +315,7 @@ class _StepClientState extends State<_StepClient> {
   late final TextEditingController _nomCtrl;
   late final TextEditingController _adresseCtrl;
   late final TextEditingController _dateCtrl;
-
-  static const _suggestions = [
-    'Mme. Manga', 'M. Diallo', 'Société Teranga',
-    'Clinique Cap-Vert', 'Ambassade du Japon',
-  ];
+  List<dynamic> _clients = [];
 
   static const _adresseSuggestions = [
     'Almadies', 'Plateau', 'Ouakam', 'Mermoz',
@@ -331,6 +330,26 @@ class _StepClientState extends State<_StepClient> {
     _dateCtrl = TextEditingController(
         text: DateFormat('dd MMMM yyyy', 'fr_FR')
             .format(widget.data.date));
+    _loadClients();
+  }
+
+  Future<void> _loadClients() async {
+    try {
+      final clients = await Supabase.instance.client
+          .from('clients')
+          .select('id, nom, adresse')
+          .order('nom');
+      if (mounted) setState(() => _clients = clients as List);
+    } catch (_) {}
+  }
+
+  void _selectClient(Map client) {
+    _nomCtrl.text = client['nom'] as String;
+    _adresseCtrl.text = client['adresse'] as String? ?? '';
+    widget.data.clientNom = client['nom'] as String;
+    widget.data.clientAdresse = client['adresse'] as String? ?? '';
+    widget.data.clientId = client['id'] as String;
+    widget.onChange();
   }
 
   @override
@@ -364,28 +383,56 @@ class _StepClientState extends State<_StepClient> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Sélecteur client depuis la base de données
+          if (_clients.isNotEmpty) ...[
+            _StepQuestion(icon: '🔍', question: 'Sélectionner un client enregistré'),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.g300),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: ButtonTheme(
+                  alignedDropdown: true,
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    hint: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('— Choisir un client existant —'),
+                    ),
+                    value: widget.data.clientId,
+                    items: _clients.map<DropdownMenuItem<String>>((c) {
+                      return DropdownMenuItem<String>(
+                        value: c['id'] as String,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(c['nom'] as String,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (id) {
+                      if (id == null) return;
+                      final client = _clients.firstWhere((c) => c['id'] == id);
+                      _selectClient(client as Map);
+                      setState(() {});
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+          ],
+
           _StepQuestion(
             icon: '👤',
-            question: 'Quel est le nom du client ou de la société ?',
+            question: 'Ou saisir manuellement :',
           ),
           const SizedBox(height: 14),
-
-          // Suggestions rapides
-          Wrap(
-            spacing: 8, runSpacing: 8,
-            children: _suggestions
-                .map((s) => _QuickChip(
-                  label: s,
-                  selected: _nomCtrl.text == s,
-                  onTap: () {
-                    _nomCtrl.text = s;
-                    widget.data.clientNom = s;
-                    widget.onChange();
-                  },
-                ))
-                .toList(),
-          ),
-          const SizedBox(height: 16),
 
           // Champ nom
           _WizardField(
@@ -1149,13 +1196,47 @@ class _StepFinishState extends State<_StepFinish> {
     _generate();
   }
 
+  String? _savedInvoiceId;
+
   Future<void> _generate() async {
     setState(() { _generating = true; _error = null; });
     try {
       final bytes = await PdfService.generateInvoice(widget.data);
-      if (mounted) setState(() { _pdfBytes = bytes; _generating = false; });
+      if (!mounted) return;
+      setState(() { _pdfBytes = bytes; _generating = false; });
+      // Sauvegarder en DB si un client est lié
+      if (widget.data.clientId != null) {
+        await _saveToDatabase(bytes);
+      }
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _generating = false; });
+    }
+  }
+
+  Future<void> _saveToDatabase(Uint8List bytes) async {
+    try {
+      final d = widget.data;
+      // 1. Créer la facture en DB
+      final invoice = await InvoiceService().create(Invoice(
+        id: '',
+        numero: '',
+        clientId: d.clientId!,
+        marketId: d.marketId,
+        date: d.date,
+        montantHt: d.netHT,
+        tvaPct: d.applyTva ? 18.0 : 0.0,
+        totalTtc: d.totalTTC,
+        statut: InvoiceStatut.emise,
+        createdAt: DateTime.now(),
+      ));
+      _savedInvoiceId = invoice.id;
+      // 2. Uploader le PDF et lier à la facture
+      final pdfUrl = await StorageService.uploadPdf(bytes, '${invoice.numero}.pdf');
+      await InvoiceService().updatePdfUrl(invoice.id, pdfUrl);
+      // Mettre à jour le numéro dans les données du wizard
+      if (mounted) setState(() => widget.data.numero = invoice.numero);
+    } catch (_) {
+      // Échec silencieux — le PDF reste utilisable même sans sauvegarde DB
     }
   }
 
