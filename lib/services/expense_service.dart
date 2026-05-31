@@ -4,9 +4,16 @@ import '../models/expense.dart';
 class ExpenseService {
   final _db = Supabase.instance.client.from('expenses');
 
+  Future<List<Expense>> getAll() async {
+    final data = await _db
+        .select('*, markets(numero)')
+        .order('date', ascending: false);
+    return (data as List).map((m) => Expense.fromMap(m)).toList();
+  }
+
   Future<List<Expense>> getByMarket(String marketId) async {
     final data = await _db
-        .select()
+        .select('*, markets(numero)')
         .eq('market_id', marketId)
         .order('date', ascending: false);
     return (data as List).map((m) => Expense.fromMap(m)).toList();
@@ -23,7 +30,7 @@ class ExpenseService {
           ...expense.toInsertMap(),
           'created_at': DateTime.now().toIso8601String(),
         })
-        .select()
+        .select('*, markets(numero)')
         .single();
     return Expense.fromMap(data);
   }
