@@ -12,6 +12,7 @@ import 'dart:io';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../services/pdf_service.dart';
+import '../../services/storage_service.dart';
 import 'invoice_wizard_data.dart';
 
 class InvoiceWizardScreen extends StatefulWidget {
@@ -1176,14 +1177,23 @@ class _StepFinishState extends State<_StepFinish> {
         '📞 (+221) 77 562 03 50';
 
     if (kIsWeb) {
-      // Sur web : télécharger le PDF + ouvrir WhatsApp avec le message
-      await Printing.sharePdf(
-        bytes: _pdfBytes!,
-        filename: '${d.numero}.pdf',
-      );
-      final waUrl = Uri.parse(
-          'https://wa.me/?text=${Uri.encodeComponent(msg)}');
-      await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+      // Sur web : uploader le PDF sur Supabase Storage et envoyer le lien
+      try {
+        final pdfUrl = await StorageService.uploadPdf(
+          _pdfBytes!,
+          '${d.numero}.pdf',
+        );
+        final msgAvecLien =
+            '$msg\n\n📎 Télécharger la facture PDF :\n$pdfUrl';
+        final waUrl = Uri.parse(
+            'https://wa.me/?text=${Uri.encodeComponent(msgAvecLien)}');
+        await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        // Fallback : message sans lien
+        final waUrl = Uri.parse(
+            'https://wa.me/?text=${Uri.encodeComponent(msg)}');
+        await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+      }
     } else {
       // Sur mobile/desktop : partage natif avec le fichier
       final dir = await getTemporaryDirectory();
