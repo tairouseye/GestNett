@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -1164,10 +1165,6 @@ class _StepFinishState extends State<_StepFinish> {
 
   Future<void> _shareWhatsApp() async {
     if (_pdfBytes == null) return;
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/${widget.data.numero}.pdf');
-    await file.writeAsBytes(_pdfBytes!);
-
     final d = widget.data;
     final msg =
         'Bonjour,\n\nVeuillez trouver ci-joint votre facture D2SERVICES.\n\n'
@@ -1178,10 +1175,25 @@ class _StepFinishState extends State<_StepFinish> {
         'Cordialement,\nD2SERVICES – La Responsable\n'
         '📞 (+221) 77 562 03 50';
 
-    await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'application/pdf')],
-      text: msg,
-    );
+    if (kIsWeb) {
+      // Sur web : télécharger le PDF + ouvrir WhatsApp avec le message
+      await Printing.sharePdf(
+        bytes: _pdfBytes!,
+        filename: '${d.numero}.pdf',
+      );
+      final waUrl = Uri.parse(
+          'https://wa.me/?text=${Uri.encodeComponent(msg)}');
+      await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+    } else {
+      // Sur mobile/desktop : partage natif avec le fichier
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/${d.numero}.pdf');
+      await file.writeAsBytes(_pdfBytes!);
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/pdf')],
+        text: msg,
+      );
+    }
   }
 
   Future<void> _shareEmail() async {
