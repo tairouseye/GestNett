@@ -8,28 +8,44 @@ class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.child});
 
   static const _tabs = [
-    _TabItem(icon: Icons.dashboard_outlined,      activeIcon: Icons.dashboard,          label: AppStrings.dashboard,  path: '/'),
-    _TabItem(icon: Icons.handshake_outlined,       activeIcon: Icons.handshake,          label: AppStrings.markets,    path: '/markets'),
-    _TabItem(icon: Icons.people_outline,           activeIcon: Icons.people,             label: AppStrings.clients,    path: '/clients'),
-    _TabItem(icon: Icons.receipt_long_outlined,    activeIcon: Icons.receipt_long,       label: AppStrings.invoices,   path: '/invoices'),
-    _TabItem(icon: Icons.more_horiz_outlined,      activeIcon: Icons.more_horiz,         label: AppStrings.more,       path: '/expenses'),
+    _TabItem(icon: Icons.dashboard_outlined,   activeIcon: Icons.dashboard,      label: AppStrings.dashboard, path: '/'),
+    _TabItem(icon: Icons.handshake_outlined,    activeIcon: Icons.handshake,      label: AppStrings.markets,   path: '/markets'),
+    _TabItem(icon: Icons.people_outline,        activeIcon: Icons.people,         label: AppStrings.clients,   path: '/clients'),
+    _TabItem(icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long,   label: AppStrings.invoices,  path: '/invoices'),
+    _TabItem(icon: Icons.more_horiz_outlined,   activeIcon: Icons.more_horiz,     label: AppStrings.more,      path: '/expenses'),
   ];
 
   int _currentIndex(String location) {
-    if (location.startsWith('/markets')) return 1;
-    if (location.startsWith('/clients')) return 2;
-    if (location.startsWith('/invoices')) return 3;
-    if (location.startsWith('/expenses') || location.startsWith('/notifications')) return 4;
+    if (location.startsWith('/markets'))    return 1;
+    if (location.startsWith('/clients'))    return 2;
+    if (location.startsWith('/invoices'))   return 3;
+    if (location.startsWith('/expenses') ||
+        location.startsWith('/notifications')) return 4;
     return 0;
   }
 
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    final current = _currentIndex(location);
+    final current  = _currentIndex(location);
 
     return Scaffold(
-      body: child,
+      body: GestureDetector(
+        onHorizontalDragEnd: (details) {
+          // Seuil minimal pour déclencher la navigation
+          const threshold = 150.0;
+          final velocity = details.primaryVelocity ?? 0;
+          if (velocity > threshold && current > 0) {
+            // Glissement vers la droite → onglet précédent
+            context.go(_tabs[current - 1].path);
+          } else if (velocity < -threshold && current < _tabs.length - 1) {
+            // Glissement vers la gauche → onglet suivant
+            context.go(_tabs[current + 1].path);
+          }
+        },
+        behavior: HitTestBehavior.translucent,
+        child: child,
+      ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.s100)),
@@ -39,7 +55,7 @@ class AppShell extends StatelessWidget {
           top: false,
           child: Row(
             children: List.generate(_tabs.length, (i) {
-              final tab = _tabs[i];
+              final tab     = _tabs[i];
               final isActive = i == current;
               return Expanded(
                 child: InkWell(

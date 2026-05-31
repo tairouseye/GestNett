@@ -1258,22 +1258,40 @@ class _StepFinishState extends State<_StepFinish> {
         '📞 (+221) 77 562 03 50';
 
     if (kIsWeb) {
-      // Sur web : uploader le PDF sur Supabase Storage et envoyer le lien
-      try {
-        final pdfUrl = await StorageService.uploadPdf(
-          _pdfBytes!,
-          '${d.numero}.pdf',
+      // Étape 1 : télécharger le PDF sur l'appareil
+      await Printing.sharePdf(
+        bytes: _pdfBytes!,
+        filename: '${d.numero}.pdf',
+      );
+      // Étape 2 : informer l'utilisateur puis ouvrir WhatsApp
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('📎 PDF téléchargé'),
+            content: const Text(
+              'Le PDF vient d\'être téléchargé sur votre appareil.\n\n'
+              'WhatsApp va s\'ouvrir avec le message pré-rempli.\n\n'
+              'Attachez le PDF téléchargé à votre message avant d\'envoyer.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  launchUrl(
+                    Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}'),
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+                child: const Text('Ouvrir WhatsApp'),
+              ),
+            ],
+          ),
         );
-        final msgAvecLien =
-            '$msg\n\n📎 Télécharger la facture PDF :\n$pdfUrl';
-        final waUrl = Uri.parse(
-            'https://wa.me/?text=${Uri.encodeComponent(msgAvecLien)}');
-        await launchUrl(waUrl, mode: LaunchMode.externalApplication);
-      } catch (_) {
-        // Fallback : message sans lien
-        final waUrl = Uri.parse(
-            'https://wa.me/?text=${Uri.encodeComponent(msg)}');
-        await launchUrl(waUrl, mode: LaunchMode.externalApplication);
       }
     } else {
       // Sur mobile/desktop : partage natif avec le fichier
