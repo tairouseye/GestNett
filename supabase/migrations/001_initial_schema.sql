@@ -156,19 +156,24 @@ create policy "profiles_own" on public.profiles
 -- Tables métier : tout utilisateur authentifié peut lire/écrire
 -- (à affiner par organisation en phase 2)
 create policy "clients_auth" on public.clients
-  for all using (auth.role() = 'authenticated');
+  for all using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
 
 create policy "markets_auth" on public.markets
-  for all using (auth.role() = 'authenticated');
+  for all using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
 
 create policy "invoices_auth" on public.invoices
-  for all using (auth.role() = 'authenticated');
+  for all using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
 
 create policy "payments_auth" on public.payments
-  for all using (auth.role() = 'authenticated');
+  for all using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
 
 create policy "expenses_auth" on public.expenses
-  for all using (auth.role() = 'authenticated');
+  for all using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
 
 create policy "notifs_own" on public.notifications
   for all using (auth.uid() = user_id);
