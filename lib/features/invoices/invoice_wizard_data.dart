@@ -27,7 +27,7 @@ class InvoiceWizardData {
     this.clientAdresse = '',
     List<PrestationLine>? prestations,
     this.reductionPct = 0,
-    this.applyTva = true,
+    this.applyTva = false,
     DateTime? date,
     String? numero,
   })  : prestations = prestations ?? [PrestationLine(designation: '', montant: 0)],
