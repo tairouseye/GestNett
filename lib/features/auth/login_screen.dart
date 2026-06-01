@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 
@@ -127,10 +128,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
 
                 const SizedBox(height: 24),
-                const Text(
-                  'CleanGest Sénégal v1.2',
-                  style: TextStyle(color: AppColors.g300, fontSize: 11),
-                ),
+                const _VersionText(),
               ],
             ),
           ),
@@ -376,6 +374,31 @@ class _ErrorBox extends StatelessWidget {
       ),
     );
   }
+}
+
+class _VersionText extends StatefulWidget {
+  const _VersionText();
+
+  @override
+  State<_VersionText> createState() => _VersionTextState();
+}
+
+class _VersionTextState extends State<_VersionText> {
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Text(
+    'CleanGest Sénégal${_version.isNotEmpty ? ' v$_version' : ''}',
+    style: const TextStyle(color: AppColors.g300, fontSize: 11),
+  );
 }
 
 class _LogoBlock extends StatelessWidget {
