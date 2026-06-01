@@ -9,6 +9,8 @@ import '../../models/invoice.dart';
 import '../../models/payment.dart';
 import '../../services/invoice_service.dart';
 import '../../services/payment_service.dart';
+import '../../services/pdf_service.dart';
+import '../../services/storage_service.dart';
 
 class InvoiceDetailScreen extends StatefulWidget {
   final String invoiceId;
@@ -190,9 +192,18 @@ class _InvoiceInfoCard extends StatelessWidget {
 
 // ── Actions PDF ───────────────────────────────────────────────────────────────
 
-class _PdfActionsCard extends StatelessWidget {
+class _PdfActionsCard extends StatefulWidget {
   final Invoice invoice;
   const _PdfActionsCard({required this.invoice});
+
+  @override
+  State<_PdfActionsCard> createState() => _PdfActionsCardState();
+}
+
+class _PdfActionsCardState extends State<_PdfActionsCard> {
+  bool _busy = false;
+
+  Invoice get invoice => widget.invoice;
 
   String get _waMsg =>
       'Bonjour,\n\nVeuillez trouver ci-joint votre facture D2SERVICES.\n\n'
@@ -202,7 +213,6 @@ class _PdfActionsCard extends StatelessWidget {
       'Cordialement,\nD2SERVICES – La Responsable\n'
       '📞 (+221) 77 562 03 50';
 
-  // Lance une URL de façon compatible web (évite le blocage popup)
   Future<bool> _launch(Uri uri) async {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.platformDefault);
@@ -211,53 +221,62 @@ class _PdfActionsCard extends StatelessWidget {
     return false;
   }
 
-  Future<void> _openPdf(BuildContext context) async {
+  /// Obtient les bytes PDF : depuis Storage si pdfUrl existe, sinon génère à la volée.
+  Future<String?> _ensurePdfUrl() async {
+    if (invoice.pdfUrl != null) return invoice.pdfUrl;
+    // Générer le PDF et l'uploader
+    try {
+      final bytes = await PdfService.generateFromInvoice(invoice);
+      final url = await StorageService.uploadPdf(bytes, '${invoice.numero}.pdf');
+      await InvoiceService().updatePdfUrl(invoice.id, url);
+      return url;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _withBusy(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try { await action(); } finally { if (mounted) setState(() => _busy = false); }
+  }
+
+  Future<void> _openPdf(BuildContext context) => _withBusy(() async {
     if (invoice.pdfUrl != null) {
       await _launch(Uri.parse(invoice.pdfUrl!));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'PDF non disponible — créez la facture via le wizard en sélectionnant un client enregistré'),
-        ),
-      );
-    }
-  }
-
-  Future<void> _shareWhatsApp(BuildContext context) async {
-    if (invoice.pdfUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PDF non disponible')),
-      );
       return;
     }
-    final msgAvecLien =
-        '$_waMsg\n\n📎 Télécharger la facture PDF :\n${invoice.pdfUrl}';
-    final waUri = Uri.parse(
-        'https://wa.me/?text=${Uri.encodeComponent(msgAvecLien)}');
-    await _launch(waUri);
-  }
+    // Générer + télécharger directement
+    final bytes = await PdfService.generateFromInvoice(invoice);
+    await Printing.sharePdf(bytes: bytes, filename: '${invoice.numero}.pdf');
+  });
 
-  Future<void> _shareEmail(BuildContext context) async {
-    final subject =
-        Uri.encodeComponent('Facture D2SERVICES – ${invoice.numero}');
+  Future<void> _shareWhatsApp(BuildContext context) => _withBusy(() async {
+    final pdfUrl = await _ensurePdfUrl();
+    final msg = pdfUrl != null
+        ? '$_waMsg\n\n📎 Télécharger la facture PDF :\n$pdfUrl'
+        : _waMsg;
+    final waUri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}');
+    await _launch(waUri);
+  });
+
+  Future<void> _shareEmail(BuildContext context) => _withBusy(() async {
+    final pdfUrl = await _ensurePdfUrl();
+    final subject = Uri.encodeComponent('Facture D2SERVICES – ${invoice.numero}');
     final body = Uri.encodeComponent(
-      '$_waMsg${invoice.pdfUrl != null ? '\n\n📎 PDF : ${invoice.pdfUrl}' : ''}',
+      '$_waMsg${pdfUrl != null ? '\n\n📎 PDF : $pdfUrl' : ''}',
     );
-    final mailUri = Uri.parse('mailto:?subject=$subject&body=$body');
-    if (!await _launch(mailUri)) {
+    if (!await _launch(Uri.parse('mailto:?subject=$subject&body=$body'))) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Aucun client mail configuré sur cet appareil')),
+          const SnackBar(content: Text('Aucun client mail configuré')),
         );
       }
     }
-  }
+  });
 
   @override
   Widget build(BuildContext context) {
-    final hasPdf = invoice.pdfUrl != null;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -273,17 +292,10 @@ class _PdfActionsCard extends StatelessWidget {
                     style: TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 14)),
                 const Spacer(),
-                if (!hasPdf)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.orange.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text('Non disponible',
-                        style: TextStyle(
-                            fontSize: 10, color: AppColors.orange)),
+                if (_busy)
+                  const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
               ],
             ),
@@ -295,7 +307,7 @@ class _PdfActionsCard extends StatelessWidget {
                     icon: Icons.open_in_new_outlined,
                     label: 'Voir PDF',
                     color: AppColors.g700,
-                    enabled: hasPdf,
+                    enabled: !_busy,
                     onTap: () => _openPdf(context),
                   ),
                 ),
@@ -305,7 +317,7 @@ class _PdfActionsCard extends StatelessWidget {
                     icon: Icons.chat_outlined,
                     label: 'WhatsApp',
                     color: const Color(0xFF25D366),
-                    enabled: hasPdf,
+                    enabled: !_busy,
                     onTap: () => _shareWhatsApp(context),
                   ),
                 ),
@@ -315,7 +327,7 @@ class _PdfActionsCard extends StatelessWidget {
                     icon: Icons.email_outlined,
                     label: 'Email',
                     color: AppColors.blue,
-                    enabled: hasPdf,
+                    enabled: !_busy,
                     onTap: () => _shareEmail(context),
                   ),
                 ),

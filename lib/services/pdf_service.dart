@@ -1,7 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../models/invoice.dart';
 import '../features/invoices/invoice_wizard_data.dart';
 
 class PdfService {
@@ -19,6 +21,28 @@ class PdfService {
 
   static String _formatDate(DateTime d) =>
       DateFormat('dd MMMM yyyy', 'fr_FR').format(d);
+
+  /// Génère un PDF depuis une facture sauvegardée en base de données.
+  static Future<Uint8List> generateFromInvoice(Invoice invoice) async {
+    // Convertir en InvoiceWizardData avec les infos disponibles
+    final data = InvoiceWizardData(
+      clientNom: invoice.clientNom ?? 'Client',
+      clientAdresse: '',
+      clientId: invoice.clientId,
+      marketId: invoice.marketId,
+      prestations: [
+        PrestationLine(
+          designation: 'Prestation de nettoyage',
+          montant: invoice.montantHt,
+        ),
+      ],
+      reductionPct: 0,
+      applyTva: invoice.tvaPct > 0,
+      date: invoice.date,
+      numero: invoice.numero,
+    );
+    return generateInvoice(data);
+  }
 
   /// Génère le PDF de la facture et retourne les bytes.
   static Future<Uint8List> generateInvoice(InvoiceWizardData data) async {
