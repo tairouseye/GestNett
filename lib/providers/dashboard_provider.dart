@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DashboardStats {
   final int marchesActifs;
+  final int nombreFactures;
   final double totalFacture;
   final double totalEncaisse;
   final double totalDepenses;
@@ -10,6 +11,7 @@ class DashboardStats {
 
   const DashboardStats({
     this.marchesActifs = 0,
+    this.nombreFactures = 0,
     this.totalFacture = 0,
     this.totalEncaisse = 0,
     this.totalDepenses = 0,
@@ -17,20 +19,6 @@ class DashboardStats {
   });
 
   double get beneficeEstime => totalEncaisse - totalDepenses;
-
-  DashboardStats copyWith({
-    int? marchesActifs,
-    double? totalFacture,
-    double? totalEncaisse,
-    double? totalDepenses,
-    int? clientsEnRetard,
-  }) => DashboardStats(
-    marchesActifs: marchesActifs ?? this.marchesActifs,
-    totalFacture: totalFacture ?? this.totalFacture,
-    totalEncaisse: totalEncaisse ?? this.totalEncaisse,
-    totalDepenses: totalDepenses ?? this.totalDepenses,
-    clientsEnRetard: clientsEnRetard ?? this.clientsEnRetard,
-  );
 }
 
 // Données pour le graphique des encaissements mensuels
@@ -51,13 +39,15 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
       .count();
   final marchesActifs = marchesRes.count;
 
-  // Total facturé (invoices émises + payées)
+  // Total facturé (toutes les factures sauf annulées)
   final invoicesRes = await supabase
       .from('invoices')
-      .select('total_ttc')
-      .inFilter('statut', ['emise', 'payee']);
-  final totalFacture = (invoicesRes as List)
+      .select('total_ttc, statut')
+      .neq('statut', 'annulee');
+  final invoicesList = invoicesRes as List;
+  final totalFacture = invoicesList
       .fold<double>(0, (s, r) => s + ((r['total_ttc'] as num?)?.toDouble() ?? 0));
+  final nombreFactures = invoicesList.length;
 
   // Total encaissé (sum payments)
   final paymentsRes = await supabase.from('payments').select('montant');
@@ -81,6 +71,7 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
 
   return DashboardStats(
     marchesActifs: marchesActifs,
+    nombreFactures: nombreFactures,
     totalFacture: totalFacture,
     totalEncaisse: totalEncaisse,
     totalDepenses: totalDepenses,

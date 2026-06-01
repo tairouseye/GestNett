@@ -118,9 +118,16 @@ class _KpiGrid extends StatelessWidget {
           unit: 'contrats',
         ),
         _KpiCard(
+          label: 'Factures',
+          value: stats.nombreFactures.toString(),
+          icon: Icons.receipt_long,
+          color: AppColors.blue,
+          unit: 'créées',
+        ),
+        _KpiCard(
           label: 'Total facturé',
           value: Formatters.fcfa(stats.totalFacture),
-          icon: Icons.receipt_long,
+          icon: Icons.payments_outlined,
           color: AppColors.blue,
         ),
         _KpiCard(
