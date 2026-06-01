@@ -202,16 +202,23 @@ class _PdfActionsCard extends StatelessWidget {
       'Cordialement,\nD2SERVICES – La Responsable\n'
       '📞 (+221) 77 562 03 50';
 
+  // Lance une URL de façon compatible web (évite le blocage popup)
+  Future<bool> _launch(Uri uri) async {
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.platformDefault);
+      return true;
+    }
+    return false;
+  }
+
   Future<void> _openPdf(BuildContext context) async {
     if (invoice.pdfUrl != null) {
-      await launchUrl(
-        Uri.parse(invoice.pdfUrl!),
-        mode: LaunchMode.externalApplication,
-      );
+      await _launch(Uri.parse(invoice.pdfUrl!));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('PDF non disponible — générez la facture depuis le wizard'),
+          content: Text(
+              'PDF non disponible — créez la facture via le wizard en sélectionnant un client enregistré'),
         ),
       );
     }
@@ -220,61 +227,32 @@ class _PdfActionsCard extends StatelessWidget {
   Future<void> _shareWhatsApp(BuildContext context) async {
     if (invoice.pdfUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PDF non disponible pour ce partage')),
+        const SnackBar(content: Text('PDF non disponible')),
       );
       return;
     }
     final msgAvecLien =
-        '$_waMsg\n\n📎 Télécharger la facture :\n${invoice.pdfUrl}';
-
-    if (kIsWeb) {
-      // Ouvrir le PDF dans un onglet puis WhatsApp
-      await launchUrl(Uri.parse(invoice.pdfUrl!),
-          mode: LaunchMode.externalApplication);
-      if (context.mounted) {
-        await showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('📤 Partager sur WhatsApp'),
-            content: const Text(
-              'Le PDF vient de s\'ouvrir dans un onglet.\n\n'
-              'WhatsApp va s\'ouvrir avec le lien de téléchargement du PDF.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Annuler'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  launchUrl(
-                    Uri.parse(
-                        'https://wa.me/?text=${Uri.encodeComponent(msgAvecLien)}'),
-                    mode: LaunchMode.externalApplication,
-                  );
-                },
-                child: const Text('Ouvrir WhatsApp'),
-              ),
-            ],
-          ),
-        );
-      }
-    } else {
-      await launchUrl(
-        Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msgAvecLien)}'),
-        mode: LaunchMode.externalApplication,
-      );
-    }
+        '$_waMsg\n\n📎 Télécharger la facture PDF :\n${invoice.pdfUrl}';
+    final waUri = Uri.parse(
+        'https://wa.me/?text=${Uri.encodeComponent(msgAvecLien)}');
+    await _launch(waUri);
   }
 
-  Future<void> _shareEmail() async {
+  Future<void> _shareEmail(BuildContext context) async {
     final subject =
         Uri.encodeComponent('Facture D2SERVICES – ${invoice.numero}');
     final body = Uri.encodeComponent(
-      '$_waMsg${invoice.pdfUrl != null ? '\n\n📎 ${invoice.pdfUrl}' : ''}',
+      '$_waMsg${invoice.pdfUrl != null ? '\n\n📎 PDF : ${invoice.pdfUrl}' : ''}',
     );
-    await launchUrl(Uri.parse('mailto:?subject=$subject&body=$body'));
+    final mailUri = Uri.parse('mailto:?subject=$subject&body=$body');
+    if (!await _launch(mailUri)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Aucun client mail configuré sur cet appareil')),
+        );
+      }
+    }
   }
 
   @override
@@ -338,7 +316,7 @@ class _PdfActionsCard extends StatelessWidget {
                     label: 'Email',
                     color: AppColors.blue,
                     enabled: hasPdf,
-                    onTap: _shareEmail,
+                    onTap: () => _shareEmail(context),
                   ),
                 ),
               ],
