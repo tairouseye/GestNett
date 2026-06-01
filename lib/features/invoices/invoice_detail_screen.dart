@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
@@ -89,6 +91,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       _InvoiceInfoCard(invoice: _invoice!),
+                      const SizedBox(height: 12),
+                      _PdfActionsCard(invoice: _invoice!),
                       const SizedBox(height: 12),
                       _BilanCard(
                         totalTtc: _invoice!.totalTtc,
@@ -182,6 +186,213 @@ class _InvoiceInfoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Actions PDF ───────────────────────────────────────────────────────────────
+
+class _PdfActionsCard extends StatelessWidget {
+  final Invoice invoice;
+  const _PdfActionsCard({required this.invoice});
+
+  String get _waMsg =>
+      'Bonjour,\n\nVeuillez trouver ci-joint votre facture D2SERVICES.\n\n'
+      '📄 Facture N° : ${invoice.numero}\n'
+      '👤 Client : ${invoice.clientNom ?? ''}\n'
+      '💰 Total TTC : ${Formatters.fcfa(invoice.totalTtc)}\n\n'
+      'Cordialement,\nD2SERVICES – La Responsable\n'
+      '📞 (+221) 77 562 03 50';
+
+  Future<void> _openPdf(BuildContext context) async {
+    if (invoice.pdfUrl != null) {
+      await launchUrl(
+        Uri.parse(invoice.pdfUrl!),
+        mode: LaunchMode.externalApplication,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PDF non disponible — générez la facture depuis le wizard'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _shareWhatsApp(BuildContext context) async {
+    if (invoice.pdfUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PDF non disponible pour ce partage')),
+      );
+      return;
+    }
+    final msgAvecLien =
+        '$_waMsg\n\n📎 Télécharger la facture :\n${invoice.pdfUrl}';
+
+    if (kIsWeb) {
+      // Ouvrir le PDF dans un onglet puis WhatsApp
+      await launchUrl(Uri.parse(invoice.pdfUrl!),
+          mode: LaunchMode.externalApplication);
+      if (context.mounted) {
+        await showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('📤 Partager sur WhatsApp'),
+            content: const Text(
+              'Le PDF vient de s\'ouvrir dans un onglet.\n\n'
+              'WhatsApp va s\'ouvrir avec le lien de téléchargement du PDF.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  launchUrl(
+                    Uri.parse(
+                        'https://wa.me/?text=${Uri.encodeComponent(msgAvecLien)}'),
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+                child: const Text('Ouvrir WhatsApp'),
+              ),
+            ],
+          ),
+        );
+      }
+    } else {
+      await launchUrl(
+        Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msgAvecLien)}'),
+        mode: LaunchMode.externalApplication,
+      );
+    }
+  }
+
+  Future<void> _shareEmail() async {
+    final subject =
+        Uri.encodeComponent('Facture D2SERVICES – ${invoice.numero}');
+    final body = Uri.encodeComponent(
+      '$_waMsg${invoice.pdfUrl != null ? '\n\n📎 ${invoice.pdfUrl}' : ''}',
+    );
+    await launchUrl(Uri.parse('mailto:?subject=$subject&body=$body'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPdf = invoice.pdfUrl != null;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.picture_as_pdf_outlined,
+                    color: AppColors.red, size: 18),
+                const SizedBox(width: 6),
+                const Text('Document PDF',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
+                const Spacer(),
+                if (!hasPdf)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text('Non disponible',
+                        style: TextStyle(
+                            fontSize: 10, color: AppColors.orange)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionBtn(
+                    icon: Icons.open_in_new_outlined,
+                    label: 'Voir PDF',
+                    color: AppColors.g700,
+                    enabled: hasPdf,
+                    onTap: () => _openPdf(context),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionBtn(
+                    icon: Icons.chat_outlined,
+                    label: 'WhatsApp',
+                    color: const Color(0xFF25D366),
+                    enabled: hasPdf,
+                    onTap: () => _shareWhatsApp(context),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionBtn(
+                    icon: Icons.email_outlined,
+                    label: 'Email',
+                    color: AppColors.blue,
+                    enabled: hasPdf,
+                    onTap: _shareEmail,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool enabled;
+  final VoidCallback onTap;
+  const _ActionBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: enabled ? onTap : null,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: enabled
+            ? color.withValues(alpha: 0.1)
+            : AppColors.s100.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: enabled
+                ? color.withValues(alpha: 0.3)
+                : Colors.transparent),
+      ),
+      child: Column(
+        children: [
+          Icon(icon,
+              color: enabled ? color : AppColors.s300, size: 20),
+          const SizedBox(height: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: enabled ? color : AppColors.s300)),
+        ],
+      ),
+    ),
+  );
 }
 
 // ── Bilan paiements ───────────────────────────────────────────────────────────
