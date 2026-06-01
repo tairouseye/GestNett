@@ -35,12 +35,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         password: _passCtrl.text,
       );
       if (profile == null) {
-        setState(() => _error = 'Email ou mot de passe incorrect.');
+        if (mounted) setState(() => _error = 'Email ou mot de passe incorrect.');
       } else {
         if (mounted) context.go('/');
       }
     } catch (e) {
-      setState(() => _error = 'Email ou mot de passe incorrect.');
+      if (mounted) setState(() => _error = 'Email ou mot de passe incorrect.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

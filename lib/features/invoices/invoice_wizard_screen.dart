@@ -1267,7 +1267,7 @@ class _StepFinishState extends State<_StepFinish> {
       if (mounted) {
         await showDialog(
           context: context,
-          builder: (_) => AlertDialog(
+          builder: (dialogContext) => AlertDialog(
             title: const Text('📎 PDF téléchargé'),
             content: const Text(
               'Le PDF vient d\'être téléchargé sur votre appareil.\n\n'
@@ -1276,15 +1276,15 @@ class _StepFinishState extends State<_StepFinish> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Annuler'),
               ),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  launchUrl(
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+                  await launchUrl(
                     Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}'),
-                    mode: LaunchMode.externalApplication,
+                    mode: LaunchMode.platformDefault,
                   );
                 },
                 child: const Text('Ouvrir WhatsApp'),

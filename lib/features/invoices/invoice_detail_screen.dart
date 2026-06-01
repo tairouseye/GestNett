@@ -55,9 +55,9 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
             IconButton(
               icon: const Icon(Icons.picture_as_pdf_outlined),
               tooltip: 'Voir PDF',
-              onPressed: () => launchUrl(
+              onPressed: () async => launchUrl(
                 Uri.parse(_invoice!.pdfUrl!),
-                mode: LaunchMode.externalApplication,
+                mode: LaunchMode.platformDefault,
               ),
             ),
           if (_invoice != null)
@@ -65,7 +65,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               icon: const Icon(Icons.more_vert),
               onSelected: (s) async {
                 await InvoiceService().updateStatut(_invoice!.id, s);
-                _load();
+                if (mounted) await _load();
               },
               itemBuilder: (_) => InvoiceStatut.values
                   .map((s) => PopupMenuItem(value: s, child: Text(s.label)))
@@ -526,14 +526,14 @@ class _PaymentsSection extends StatelessWidget {
   void _confirmDelete(BuildContext context, String id) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Supprimer ce paiement ?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Annuler')),
           TextButton(
-              onPressed: () { Navigator.pop(context); onDelete(id); },
+              onPressed: () { Navigator.pop(dialogContext); onDelete(id); },
               child: const Text('Supprimer',
                   style: TextStyle(color: AppColors.red))),
         ],

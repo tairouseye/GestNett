@@ -245,7 +245,7 @@ class _Chip extends StatelessWidget {
 
 class _ExpenseCard extends StatelessWidget {
   final Expense expense;
-  final VoidCallback onDelete;
+  final Future<void> Function() onDelete;
   const _ExpenseCard({required this.expense, required this.onDelete});
 
   @override
@@ -301,15 +301,18 @@ class _ExpenseCard extends StatelessWidget {
   void _confirmDelete(BuildContext context) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Supprimer ?'),
         content: const Text('Cette dépense sera supprimée définitivement.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Annuler')),
           TextButton(
-              onPressed: () { Navigator.pop(context); onDelete(); },
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await onDelete();
+              },
               child: const Text('Supprimer',
                   style: TextStyle(color: AppColors.red))),
         ],
