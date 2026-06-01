@@ -51,8 +51,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _verifyCode() async {
     final code = _codeCtrl.text.trim();
-    if (code.length != 6) {
-      setState(() => _error = 'Le code doit contenir 6 chiffres');
+    if (code.length < 6) {
+      setState(() => _error = 'Entrez le code reçu par email');
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -271,21 +271,21 @@ class _CodeCard extends StatelessWidget {
             controller: ctrl,
             keyboardType: TextInputType.number,
             textAlign: TextAlign.center,
-            maxLength: 6,
+            maxLength: 8,
             autofocus: true,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: const TextStyle(
-                fontSize: 32,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 14),
+                letterSpacing: 10),
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => onVerify(),
             decoration: const InputDecoration(
-              hintText: '000000',
+              hintText: '00000000',
               counterText: '',
               hintStyle: TextStyle(
-                  letterSpacing: 14,
-                  fontSize: 28,
+                  letterSpacing: 10,
+                  fontSize: 24,
                   color: AppColors.g300),
             ),
           ),
