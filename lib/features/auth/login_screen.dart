@@ -409,24 +409,25 @@ class _LogoBlock extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 80, height: 80,
+          width: 100, height: 100,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.g700, AppColors.g400],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: AppColors.g500.withValues(alpha: 0.4),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 20,
                 offset: const Offset(0, 6),
               )
             ],
           ),
-          child: const Center(
-              child: Text('🧹', style: TextStyle(fontSize: 36))),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Image.asset(
+              'assets/images/logo.png',
+              fit: BoxFit.contain,
+            ),
+          ),
         ),
         const SizedBox(height: 16),
         RichText(

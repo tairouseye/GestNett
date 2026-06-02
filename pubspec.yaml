@@ -1,7 +1,7 @@
 name: cleangest_senegal
 description: CleanGest Sénégal — Gestion PME de nettoyage D2SERVICES
 publish_to: 'none'
-version: 1.4.0+6
+version: 1.5.0+7
 
 environment:
   sdk: ^3.11.5
@@ -54,6 +54,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  web:
+    generate: true
+    image_path: assets/images/logo.png
+    background_color: "#145221"
+    theme_color: "#145221"
+  image_path: assets/images/logo.png
+  background_color_android: "#145221"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
