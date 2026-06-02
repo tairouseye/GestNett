@@ -2,10 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
+import '../utils/inactivity_service.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends StatefulWidget {
   final Widget child;
   const AppShell({super.key, required this.child});
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  @override
+  void initState() {
+    super.initState();
+    InactivityService.instance.start(() {
+      if (mounted) context.go('/login');
+    });
+  }
+
+  @override
+  void dispose() {
+    InactivityService.instance.stop();
+    super.dispose();
+  }
+
+  void _onActivity() => InactivityService.instance.onUserActivity();
 
   static const _tabs = [
     _TabItem(icon: Icons.dashboard_outlined,   activeIcon: Icons.dashboard,      label: AppStrings.dashboard, path: '/'),
@@ -30,7 +52,10 @@ class AppShell extends StatelessWidget {
     final current  = _currentIndex(location);
 
     return Scaffold(
-      body: GestureDetector(
+      body: Listener(
+        onPointerDown:   (_) => _onActivity(),
+        onPointerMove:   (_) => _onActivity(),
+        child: GestureDetector(
         onHorizontalDragEnd: (details) {
           // Seuil minimal pour déclencher la navigation
           const threshold = 150.0;
@@ -44,7 +69,8 @@ class AppShell extends StatelessWidget {
           }
         },
         behavior: HitTestBehavior.translucent,
-        child: child,
+        child: widget.child,
+      ),
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
