@@ -31,15 +31,15 @@ class _AppShellState extends State<AppShell> {
 
   static const _tabs = [
     _TabItem(icon: Icons.dashboard_outlined,   activeIcon: Icons.dashboard,      label: AppStrings.dashboard, path: '/'),
-    _TabItem(icon: Icons.handshake_outlined,    activeIcon: Icons.handshake,      label: AppStrings.markets,   path: '/markets'),
     _TabItem(icon: Icons.people_outline,        activeIcon: Icons.people,         label: AppStrings.clients,   path: '/clients'),
+    _TabItem(icon: Icons.handshake_outlined,    activeIcon: Icons.handshake,      label: AppStrings.markets,   path: '/markets'),
     _TabItem(icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long,   label: AppStrings.invoices,  path: '/invoices'),
     _TabItem(icon: Icons.more_horiz_outlined,   activeIcon: Icons.more_horiz,     label: AppStrings.more,      path: '/expenses'),
   ];
 
   int _currentIndex(String location) {
-    if (location.startsWith('/markets'))    return 1;
-    if (location.startsWith('/clients'))    return 2;
+    if (location.startsWith('/clients'))    return 1;
+    if (location.startsWith('/markets'))    return 2;
     if (location.startsWith('/invoices'))   return 3;
     if (location.startsWith('/expenses') ||
         location.startsWith('/notifications')) return 4;

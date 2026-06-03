@@ -1,7 +1,7 @@
 name: cleangest_senegal
 description: CleanGest Sénégal — Gestion PME de nettoyage D2SERVICES
 publish_to: 'none'
-version: 1.5.0+7
+version: 1.5.1+8
 
 environment:
   sdk: ^3.11.5
