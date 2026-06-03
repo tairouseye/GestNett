@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../utils/inactivity_service.dart';
@@ -28,6 +29,33 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _onActivity() => InactivityService.instance.onUserActivity();
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Se déconnecter ?'),
+        content: const Text('Vous allez être déconnecté de CleanGest.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Déconnecter',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      InactivityService.instance.stop();
+      await Supabase.instance.client.auth.signOut();
+      if (mounted) context.go('/login');
+    }
+  }
 
   static const _tabs = [
     _TabItem(icon: Icons.dashboard_outlined,   activeIcon: Icons.dashboard,      label: AppStrings.dashboard, path: '/'),
@@ -80,50 +108,74 @@ class _AppShellState extends State<AppShell> {
         child: SafeArea(
           top: false,
           child: Row(
-            children: List.generate(_tabs.length, (i) {
-              final tab     = _tabs[i];
-              final isActive = i == current;
-              return Expanded(
-                child: InkWell(
-                  onTap: () => context.go(tab.path),
-                  borderRadius: BorderRadius.circular(8),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isActive ? tab.activeIcon : tab.icon,
-                          size: 24,
-                          color: isActive ? AppColors.g600 : AppColors.s300,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          tab.label,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: isActive
-                                ? FontWeight.w700 : FontWeight.w500,
+            children: [
+              ...List.generate(_tabs.length, (i) {
+                final tab     = _tabs[i];
+                final isActive = i == current;
+                return Expanded(
+                  child: InkWell(
+                    onTap: () => context.go(tab.path),
+                    borderRadius: BorderRadius.circular(8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isActive ? tab.activeIcon : tab.icon,
+                            size: 24,
                             color: isActive ? AppColors.g600 : AppColors.s300,
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          height: 2,
-                          width: isActive ? 20 : 0,
-                          decoration: BoxDecoration(
-                            color: AppColors.g500,
-                            borderRadius: BorderRadius.circular(1),
+                          const SizedBox(height: 3),
+                          Text(
+                            tab.label,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: isActive
+                                  ? FontWeight.w700 : FontWeight.w500,
+                              color: isActive ? AppColors.g600 : AppColors.s300,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            height: 2,
+                            width: isActive ? 20 : 0,
+                            decoration: BoxDecoration(
+                              color: AppColors.g500,
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                );
+              }),
+              // Bouton déconnexion
+              InkWell(
+                onTap: _logout,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.logout, size: 22, color: AppColors.red),
+                      SizedBox(height: 3),
+                      Text('Quitter',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.red)),
+                      SizedBox(height: 4),
+                    ],
+                  ),
                 ),
-              );
-            }),
+              ),
+            ],
           ),
         ),
       ),
