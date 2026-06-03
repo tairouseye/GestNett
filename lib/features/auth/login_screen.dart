@@ -41,7 +41,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authServiceProvider).sendOtp(email);
       if (mounted) setState(() { _codeSent = true; _email = email; });
     } catch (e) {
-      if (mounted) setState(() => _error = 'Impossible d\'envoyer le code. Vérifiez l\'email.');
+      final msg = e.toString().toLowerCase();
+      String erreur;
+      if (msg.contains('rate limit') || msg.contains('too many')) {
+        erreur = 'Trop de tentatives. Attendez quelques minutes avant de réessayer.';
+      } else if (msg.contains('invalid email') || msg.contains('email')) {
+        erreur = 'Adresse email invalide ou non autorisée.';
+      } else {
+        erreur = 'Erreur : $e';
+      }
+      if (mounted) setState(() => _error = erreur);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
