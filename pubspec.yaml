@@ -1,5 +1,5 @@
-name: cleangest_senegal
-description: CleanGest Sénégal — Gestion PME de nettoyage D2SERVICES
+name: gestnett
+description: GestNett — Gestion PME multi-entreprises
 publish_to: 'none'
 version: 1.5.5+12
 

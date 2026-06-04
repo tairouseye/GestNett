@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "sn.d2services.cleangest_senegal"
+    namespace = "sn.d2services.gestnett"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "sn.d2services.cleangest_senegal"
+        applicationId = "sn.d2services.gestnett"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

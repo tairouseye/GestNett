@@ -1,6 +1,6 @@
-{
-    "name": "cleangest_senegal",
-    "short_name": "cleangest_senegal",
+﻿{
+    "name": "GestNett",
+    "short_name": "GestNett",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#145221",

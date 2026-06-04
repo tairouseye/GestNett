@@ -1,4 +1,4 @@
-package sn.d2services.cleangest_senegal
+﻿package sn.d2services.gestnett
 
 import io.flutter.embedding.android.FlutterActivity
 
