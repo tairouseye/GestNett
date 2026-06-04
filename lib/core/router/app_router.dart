@@ -16,6 +16,7 @@ import '../../features/invoices/invoice_wizard_screen.dart';
 import '../../features/invoices/invoice_detail_screen.dart';
 import '../../features/expenses/expenses_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
+import '../../features/settings/settings_screen.dart';
 import '../../core/shell/app_shell.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -107,6 +108,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/notifications',
             builder: (_, __) => const NotificationsScreen(),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (_, __) => const SettingsScreen(),
           ),
         ],
       ),

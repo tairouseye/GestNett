@@ -4,6 +4,7 @@ import '../models/payment.dart';
 
 class InvoiceService {
   final _supabase = Supabase.instance.client;
+  String get _uid => _supabase.auth.currentUser!.id;
 
   Future<List<Invoice>> getAll() async {
     final data = await _supabase
@@ -38,6 +39,7 @@ class InvoiceService {
       ...invoice.toInsertMap(),
       'numero': 'FAC-${DateTime.now().year}-${seq.toString().padLeft(3, '0')}',
       'created_at': DateTime.now().toIso8601String(),
+      'created_by': _uid,
     };
     final data = await _supabase
         .from('invoices')

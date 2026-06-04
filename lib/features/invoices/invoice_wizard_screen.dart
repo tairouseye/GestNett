@@ -12,6 +12,8 @@ import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../models/company_settings.dart';
+import '../../services/company_settings_service.dart';
 import '../../services/invoice_service.dart';
 import '../../services/pdf_service.dart';
 import '../../services/storage_service.dart';
@@ -1189,6 +1191,7 @@ class _StepFinishState extends State<_StepFinish> {
   Uint8List? _pdfBytes;
   bool _generating = true;
   String? _error;
+  CompanySettings? _settings;
 
   @override
   void initState() {
@@ -1201,7 +1204,8 @@ class _StepFinishState extends State<_StepFinish> {
   Future<void> _generate() async {
     setState(() { _generating = true; _error = null; });
     try {
-      final bytes = await PdfService.generateInvoice(widget.data);
+      _settings = await CompanySettingsService.getMySettings();
+      final bytes = await PdfService.generateInvoice(widget.data, settings: _settings);
       if (!mounted) return;
       setState(() { _pdfBytes = bytes; _generating = false; });
       // Sauvegarder en DB si un client est lié

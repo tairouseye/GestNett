@@ -3,6 +3,7 @@ import '../models/expense.dart';
 
 class ExpenseService {
   final _db = Supabase.instance.client.from('expenses');
+  String get _uid => Supabase.instance.client.auth.currentUser!.id;
 
   Future<List<Expense>> getAll() async {
     final data = await _db
@@ -29,6 +30,7 @@ class ExpenseService {
         .insert({
           ...expense.toInsertMap(),
           'created_at': DateTime.now().toIso8601String(),
+          'created_by': _uid,
         })
         .select('*, markets(numero)')
         .single();

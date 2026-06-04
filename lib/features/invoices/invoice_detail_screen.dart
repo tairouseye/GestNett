@@ -7,10 +7,12 @@ import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/invoice.dart';
 import '../../models/payment.dart';
+import '../../models/company_settings.dart';
 import '../../services/invoice_service.dart';
 import '../../services/payment_service.dart';
 import '../../services/pdf_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/company_settings_service.dart';
 
 class InvoiceDetailScreen extends StatefulWidget {
   final String invoiceId;
@@ -202,8 +204,17 @@ class _PdfActionsCard extends StatefulWidget {
 
 class _PdfActionsCardState extends State<_PdfActionsCard> {
   bool _busy = false;
+  CompanySettings? _settings;
 
   Invoice get invoice => widget.invoice;
+
+  @override
+  void initState() {
+    super.initState();
+    CompanySettingsService.getMySettings().then((s) {
+      if (mounted) setState(() => _settings = s);
+    });
+  }
 
   String get _waMsg =>
       'Bonjour,\n\nVeuillez trouver ci-joint votre facture D2SERVICES.\n\n'
@@ -226,7 +237,7 @@ class _PdfActionsCardState extends State<_PdfActionsCard> {
     if (invoice.pdfUrl != null) return invoice.pdfUrl;
     // Générer le PDF et l'uploader
     try {
-      final bytes = await PdfService.generateFromInvoice(invoice);
+      final bytes = await PdfService.generateFromInvoice(invoice, settings: _settings);
       final url = await StorageService.uploadPdf(bytes, '${invoice.numero}.pdf');
       await InvoiceService().updatePdfUrl(invoice.id, url);
       return url;
@@ -247,7 +258,7 @@ class _PdfActionsCardState extends State<_PdfActionsCard> {
       return;
     }
     // Générer + télécharger directement
-    final bytes = await PdfService.generateFromInvoice(invoice);
+    final bytes = await PdfService.generateFromInvoice(invoice, settings: _settings);
     await Printing.sharePdf(bytes: bytes, filename: '${invoice.numero}.pdf');
   });
 

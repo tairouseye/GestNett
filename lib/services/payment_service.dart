@@ -3,12 +3,14 @@ import '../models/payment.dart';
 
 class PaymentService {
   final _db = Supabase.instance.client.from('payments');
+  String get _uid => Supabase.instance.client.auth.currentUser!.id;
 
   Future<Payment> add(Payment payment) async {
     final data = await _db
         .insert({
           ...payment.toInsertMap(),
           'created_at': DateTime.now().toIso8601String(),
+          'created_by': _uid,
         })
         .select()
         .single();

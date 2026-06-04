@@ -3,6 +3,7 @@ import '../models/client.dart';
 
 class ClientService {
   final _db = Supabase.instance.client.from('clients');
+  String get _uid => Supabase.instance.client.auth.currentUser!.id;
 
   Future<List<Client>> getAll() async {
     final data = await _db
@@ -19,7 +20,11 @@ class ClientService {
 
   Future<Client> create(Map<String, dynamic> fields) async {
     final data = await _db
-        .insert({...fields, 'created_at': DateTime.now().toIso8601String()})
+        .insert({
+          ...fields,
+          'created_at': DateTime.now().toIso8601String(),
+          'created_by': _uid,
+        })
         .select()
         .single();
     return Client.fromMap(data);

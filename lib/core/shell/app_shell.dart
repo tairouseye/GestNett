@@ -35,7 +35,7 @@ class _AppShellState extends State<AppShell> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Se déconnecter ?'),
-        content: const Text('Vous allez être déconnecté de CleanGest.'),
+        content: const Text('Vous allez être déconnecté de GestNett.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -63,6 +63,7 @@ class _AppShellState extends State<AppShell> {
     _TabItem(icon: Icons.handshake_outlined,    activeIcon: Icons.handshake,      label: AppStrings.markets,   path: '/markets'),
     _TabItem(icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long,   label: AppStrings.invoices,  path: '/invoices'),
     _TabItem(icon: Icons.more_horiz_outlined,   activeIcon: Icons.more_horiz,     label: AppStrings.more,      path: '/expenses'),
+    _TabItem(icon: Icons.settings_outlined,     activeIcon: Icons.settings,       label: 'Réglages',           path: '/settings'),
   ];
 
   int _currentIndex(String location) {
@@ -71,6 +72,7 @@ class _AppShellState extends State<AppShell> {
     if (location.startsWith('/invoices'))   return 3;
     if (location.startsWith('/expenses') ||
         location.startsWith('/notifications')) return 4;
+    if (location.startsWith('/settings'))   return 5;
     return 0;
   }
 

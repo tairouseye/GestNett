@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/invoice.dart';
+import '../models/company_settings.dart';
 import '../features/invoices/invoice_wizard_data.dart';
 
 class PdfService {
@@ -23,8 +25,10 @@ class PdfService {
       DateFormat('dd MMMM yyyy', 'fr_FR').format(d);
 
   /// Génère un PDF depuis une facture sauvegardée en base de données.
-  static Future<Uint8List> generateFromInvoice(Invoice invoice) async {
-    // Convertir en InvoiceWizardData avec les infos disponibles
+  static Future<Uint8List> generateFromInvoice(
+    Invoice invoice, {
+    CompanySettings? settings,
+  }) async {
     final data = InvoiceWizardData(
       clientNom: invoice.clientNom ?? 'Client',
       clientAdresse: '',
@@ -41,11 +45,14 @@ class PdfService {
       date: invoice.date,
       numero: invoice.numero,
     );
-    return generateInvoice(data);
+    return generateInvoice(data, settings: settings);
   }
 
   /// Génère le PDF de la facture et retourne les bytes.
-  static Future<Uint8List> generateInvoice(InvoiceWizardData data) async {
+  static Future<Uint8List> generateInvoice(
+    InvoiceWizardData data, {
+    CompanySettings? settings,
+  }) async {
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(
         base: pw.Font.helvetica(),
@@ -55,24 +62,34 @@ class PdfService {
       ),
     );
 
-    // Chargement des assets images
+    // Chargement des images : URL distante (settings) ou asset local (fallback)
     pw.ImageProvider? logoImage;
     pw.ImageProvider? cachetImage;
 
-    try {
-      final logoBytes =
-          await rootBundle.load('assets/images/logo.png');
-      logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
-    } catch (_) {
-      // Logo non disponible → bloc texte uniquement
+    if (settings?.logoUrl != null && settings!.logoUrl!.isNotEmpty) {
+      try {
+        final resp = await http.get(Uri.parse(settings.logoUrl!));
+        if (resp.statusCode == 200) logoImage = pw.MemoryImage(resp.bodyBytes);
+      } catch (_) {}
+    }
+    if (logoImage == null) {
+      try {
+        final bytes = await rootBundle.load('assets/images/logo.png');
+        logoImage = pw.MemoryImage(bytes.buffer.asUint8List());
+      } catch (_) {}
     }
 
-    try {
-      final cachetBytes =
-          await rootBundle.load('assets/images/Signature.png');
-      cachetImage = pw.MemoryImage(cachetBytes.buffer.asUint8List());
-    } catch (_) {
-      // Signature non disponible → placeholder
+    if (settings?.signatureUrl != null && settings!.signatureUrl!.isNotEmpty) {
+      try {
+        final resp = await http.get(Uri.parse(settings.signatureUrl!));
+        if (resp.statusCode == 200) cachetImage = pw.MemoryImage(resp.bodyBytes);
+      } catch (_) {}
+    }
+    if (cachetImage == null) {
+      try {
+        final bytes = await rootBundle.load('assets/images/Signature.png');
+        cachetImage = pw.MemoryImage(bytes.buffer.asUint8List());
+      } catch (_) {}
     }
 
     pdf.addPage(
@@ -83,7 +100,7 @@ class PdfService {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             // ── 1. EN-TÊTE ─────────────────────────────────────────────────
-            _buildHeader(logoImage),
+            _buildHeader(logoImage, settings),
             pw.SizedBox(height: 14),
 
             // ── 2. BLOC DATE / CLIENT / ADRESSE ────────────────────────────
@@ -113,15 +130,28 @@ class PdfService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // EN-TÊTE : logo + infos société
+  // EN-TÊTE : logo + infos société (dynamique si settings, sinon D2SERVICES)
   // ─────────────────────────────────────────────────────────────────────────────
-  static pw.Widget _buildHeader(pw.ImageProvider? logo) {
+  static pw.Widget _buildHeader(
+      pw.ImageProvider? logo, CompanySettings? settings) {
+    final name = settings?.companyName.isNotEmpty == true
+        ? settings!.companyName
+        : 'D2SERVICES';
+    final slogan = settings?.slogan ?? 'SOLUTIONS PROFESSIONNELLES DE NETTOYAGE, BTP ET SERVICES ASSOCIÉS';
+    final desc = settings?.description ??
+        'Entreprise de nettoyage professionnel, industriel, BTP, Placement de personnel,\n'
+            'Déco, Phytosanitaire & services connexes.';
+    final adresse = settings?.adresse ?? 'Ouakam Tagolou – Dakar, Sénégal';
+    final tel = settings?.telephone ?? '(+221) 77 562 03 50';
+    final email = settings?.email ?? 'd2services2018net@gmail.com';
+    final initials = name.length >= 2 ? name.substring(0, 2).toUpperCase() : name;
+
     return pw.Column(
       children: [
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Logo (ou placeholder)
+            // Logo (ou placeholder initiales)
             if (logo != null)
               pw.Container(
                 width: 70,
@@ -138,7 +168,7 @@ class PdfService {
                   borderRadius: pw.BorderRadius.circular(4),
                 ),
                 child: pw.Center(
-                  child: pw.Text('D2',
+                  child: pw.Text(initials,
                       style: pw.TextStyle(
                           font: pw.Font.helveticaBold(),
                           fontSize: 22,
@@ -152,40 +182,31 @@ class PdfService {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('D2SERVICES',
+                  pw.Text(name,
                       style: pw.TextStyle(
                           font: pw.Font.helveticaBold(),
                           fontSize: 13,
                           color: _textBlack)),
                   pw.SizedBox(height: 2),
                   pw.Text(
-                    'SOLUTIONS PROFESSIONNELLES DE NETTOYAGE, BTP ET SERVICES ASSOCIÉS',
+                    slogan,
                     style: pw.TextStyle(
                         font: pw.Font.helveticaBold(),
                         fontSize: 7.5,
                         color: _textBlue),
                   ),
-                  pw.Text(
-                    '« Sen Soxla, Sunu Yiité » "Votre besoin, notre crédo"',
-                    style: pw.TextStyle(
-                        font: pw.Font.helveticaOblique(),
-                        fontSize: 7,
-                        color: _textRed),
-                  ),
                   pw.SizedBox(height: 2),
                   pw.Text(
-                    'Entreprise de nettoyage professionnel, industriel, BTP, Placement de personnel,\n'
-                    'Déco, Phytosanitaire & services connexes.',
+                    desc,
                     style: pw.TextStyle(fontSize: 7, color: _textGray),
                   ),
                   pw.SizedBox(height: 3),
                   pw.Text(
-                    '📍 Ouakam Tagolou – Dakar, Sénégal',
+                    adresse,
                     style: pw.TextStyle(fontSize: 7, color: _textGray),
                   ),
                   pw.Text(
-                    '📞 (+221) 77 562 03 50 | 76 201 19 16 | 77 576 76 75'
-                    '   ✉ d2services2018net@gmail.com',
+                    'Tel: $tel   Email: $email',
                     style: pw.TextStyle(fontSize: 7, color: _textGray),
                   ),
                 ],
@@ -194,7 +215,6 @@ class PdfService {
           ],
         ),
         pw.SizedBox(height: 8),
-        // Ligne séparatrice
         pw.Divider(thickness: 1.5, color: _textBlack),
       ],
     );
