@@ -16,16 +16,42 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _codeCtrl  = TextEditingController();
-  bool _loading  = false;
-  bool _codeSent = false;
+  final _passCtrl = TextEditingController();
+  bool _loading   = false;
+  bool _codeSent  = false;
+  bool _usePassword = false; // mode secours
   String? _error;
-  String  _email = '';
+  String  _email  = '';
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _codeCtrl.dispose();
+    _passCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loginWithPassword() async {
+    final email = _emailCtrl.text.trim();
+    final pass  = _passCtrl.text;
+    if (email.isEmpty || pass.length < 6) {
+      setState(() => _error = 'Email et mot de passe requis (6 caractères min)');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      final profile = await ref.read(authServiceProvider).signIn(
+          email: email, password: pass);
+      if (profile == null) {
+        if (mounted) setState(() => _error = 'Email ou mot de passe incorrect.');
+      } else {
+        if (mounted) context.go('/');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Email ou mot de passe incorrect.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   // ── Étape 1 : envoyer le code ──────────────────────────────────────────────
@@ -127,13 +153,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onResend: _sendCode,
                           onBack: _back,
                         )
-                      : _EmailCard(
-                          key: const ValueKey('email'),
-                          ctrl: _emailCtrl,
-                          loading: _loading,
-                          error: _error,
-                          onSend: _sendCode,
-                        ),
+                      : _usePassword
+                          ? _PasswordCard(
+                              key: const ValueKey('pass'),
+                              emailCtrl: _emailCtrl,
+                              passCtrl: _passCtrl,
+                              loading: _loading,
+                              error: _error,
+                              onLogin: _loginWithPassword,
+                              onSwitch: () => setState(() {
+                                _usePassword = false;
+                                _error = null;
+                              }),
+                            )
+                          : _EmailCard(
+                              key: const ValueKey('email'),
+                              ctrl: _emailCtrl,
+                              loading: _loading,
+                              error: _error,
+                              onSend: _sendCode,
+                              onSwitchToPassword: () => setState(() {
+                                _usePassword = true;
+                                _error = null;
+                              }),
+                            ),
                 ),
 
                 const SizedBox(height: 24),
@@ -154,8 +197,9 @@ class _EmailCard extends StatelessWidget {
   final bool loading;
   final String? error;
   final VoidCallback onSend;
+  final VoidCallback onSwitchToPassword;
   const _EmailCard({super.key, required this.ctrl, required this.loading,
-      required this.error, required this.onSend});
+      required this.error, required this.onSend, required this.onSwitchToPassword});
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +243,16 @@ class _EmailCard extends StatelessWidget {
                           strokeWidth: 2.5, color: Colors.white))
                   : const Icon(Icons.send_outlined, size: 18),
               label: Text(loading ? 'Envoi...' : 'Recevoir le code'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton(
+              onPressed: onSwitchToPassword,
+              child: const Text(
+                'Connexion avec mot de passe',
+                style: TextStyle(color: AppColors.g500, fontSize: 12),
+              ),
             ),
           ),
         ],
@@ -380,6 +434,98 @@ class _ErrorBox extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Carte mot de passe (option de secours) ───────────────────────────────────
+
+class _PasswordCard extends StatefulWidget {
+  final TextEditingController emailCtrl;
+  final TextEditingController passCtrl;
+  final bool loading;
+  final String? error;
+  final VoidCallback onLogin;
+  final VoidCallback onSwitch;
+  const _PasswordCard({super.key,
+    required this.emailCtrl, required this.passCtrl,
+    required this.loading, required this.error,
+    required this.onLogin, required this.onSwitch});
+
+  @override
+  State<_PasswordCard> createState() => _PasswordCardState();
+}
+
+class _PasswordCardState extends State<_PasswordCard> {
+  bool _obscure = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                onPressed: widget.onSwitch,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 8),
+              Text('Connexion', style: Theme.of(context).textTheme.titleLarge),
+            ],
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: widget.emailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: widget.passCtrl,
+            obscureText: _obscure,
+            onFieldSubmitted: (_) => widget.onLogin(),
+            decoration: InputDecoration(
+              labelText: 'Mot de passe',
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(_obscure
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+          ),
+          _ErrorBox(widget.error),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: widget.loading ? null : widget.onLogin,
+              icon: widget.loading
+                  ? const SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Colors.white))
+                  : const Icon(Icons.login, size: 18),
+              label: Text(widget.loading ? 'Connexion...' : 'Se connecter'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: TextButton(
+              onPressed: widget.onSwitch,
+              child: const Text('Recevoir un code par email',
+                  style: TextStyle(color: AppColors.g500, fontSize: 12)),
+            ),
+          ),
+        ],
       ),
     );
   }
