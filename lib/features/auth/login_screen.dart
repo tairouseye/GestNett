@@ -43,6 +43,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _setMode(_Mode mode) => setState(() {
     _mode = mode;
     _error = null;
+    // Vider les champs mot de passe au changement de mode
+    _passCtrl.clear();
+    _confirmCtrl.clear();
+    _newPassCtrl.clear();
+    _newConfirmCtrl.clear();
   });
 
   // ── Connexion ──────────────────────────────────────────────────────────────
@@ -94,17 +99,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     setState(() { _loading = true; _error = null; });
     try {
-      final profile = await ref.read(authServiceProvider).signUp(
-          email: email, password: pass);
-      if (profile == null) {
-        if (mounted) setState(() => _error = 'Inscription échouée. Cet email est peut-être déjà utilisé.');
-      } else {
-        if (mounted) context.go('/');
+      await ref.read(authServiceProvider).signUp(email: email, password: pass);
+      if (mounted) {
+        // Basculer vers login avec l'email pré-rempli et message de succès
+        _passCtrl.clear();
+        _confirmCtrl.clear();
+        setState(() { _mode = _Mode.login; _loading = false; _error = null; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Compte créé ! Connectez-vous maintenant.'),
+            backgroundColor: AppColors.g600,
+            duration: Duration(seconds: 4),
+          ),
+        );
       }
     } catch (e) {
-      if (mounted) setState(() => _error = _friendlyError(e));
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() {
+        _error = _friendlyError(e);
+        _loading = false;
+      });
     }
   }
 
