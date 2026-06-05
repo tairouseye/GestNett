@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/GestNett/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="GestNett">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>GestNett</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <!--
+    Champs cachés absorbés par l'autofill du navigateur avant que Flutter
+    ne crée ses propres inputs — le navigateur remplit ces champs factices
+    et laisse les vrais champs Flutter vides.
+  -->
+  <div style="display:none" aria-hidden="true">
+    <input type="text"     name="fakeuser" autocomplete="username"         tabindex="-1">
+    <input type="password" name="fakepwd"  autocomplete="current-password" tabindex="-1">
+  </div>
+
+  <script>
+    // MutationObserver : dès qu'un <input type="password"> Flutter apparaît dans
+    // le DOM, on lui impose autocomplete="new-password" pour que Chrome/Edge/Firefox
+    // ne le remplissent pas automatiquement.
+    (function () {
+      function tagPwdInputs() {
+        document.querySelectorAll('input[type="password"]').forEach(function (el) {
+          if (!el.dataset.noAutofill) {
+            el.setAttribute('autocomplete', 'new-password');
+            el.dataset.noAutofill = '1';
+          }
+        });
+      }
+      var obs = new MutationObserver(function (mutations) {
+        mutations.forEach(function (m) { if (m.addedNodes.length) tagPwdInputs(); });
+      });
+      document.addEventListener('DOMContentLoaded', function () {
+        obs.observe(document.body, { childList: true, subtree: true });
+        tagPwdInputs();
+      });
+    })();
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
