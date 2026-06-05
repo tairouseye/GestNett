@@ -204,12 +204,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String _friendlyError(Object e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('invalid login')) return 'Email ou mot de passe incorrect.';
-    if (msg.contains('already registered')) return 'Cet email est déjà utilisé.';
+    if (msg.contains('invalid login') || msg.contains('invalid credentials')) {
+      return 'Email ou mot de passe incorrect.\n(Si vous venez de vous inscrire, réessayez dans quelques secondes)';
+    }
+    if (msg.contains('already registered') || msg.contains('user already')) return 'Cet email est déjà utilisé.';
     if (msg.contains('rate limit') || msg.contains('too many')) return 'Trop de tentatives. Attendez quelques minutes.';
     if (msg.contains('user not found')) return 'Aucun compte avec cet email.';
-    if (msg.contains('sending')) return 'Erreur envoi email. Vérifiez votre adresse.';
-    return e.toString().replaceAll('Exception:', '').trim();
+    if (msg.contains('email not confirmed')) return 'Email non confirmé. Désactivez la confirmation dans Supabase.';
+    // Afficher l'erreur brute pour faciliter le diagnostic
+    return e.toString().replaceAll('AuthException', '').replaceAll('Exception:', '').trim();
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -328,11 +331,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         _EmailField(_emailCtrl),
         const SizedBox(height: 12),
-        _PasswordField(ctrl: _passCtrl, label: 'Mot de passe'),
+        _PasswordField(ctrl: _passCtrl, label: 'Mot de passe', disableAutofill: true),
         const SizedBox(height: 12),
         _PasswordField(
             ctrl: _confirmCtrl,
             label: 'Confirmer le mot de passe',
+            disableAutofill: true,
             onSubmit: _signup),
 
         _ErrorBox(_error),
@@ -534,7 +538,13 @@ class _PasswordField extends StatefulWidget {
   final TextEditingController ctrl;
   final String label;
   final VoidCallback? onSubmit;
-  const _PasswordField({required this.ctrl, required this.label, this.onSubmit});
+  final bool disableAutofill;
+  const _PasswordField({
+    required this.ctrl,
+    required this.label,
+    this.onSubmit,
+    this.disableAutofill = false,
+  });
 
   @override
   State<_PasswordField> createState() => _PasswordFieldState();
@@ -547,6 +557,9 @@ class _PasswordFieldState extends State<_PasswordField> {
   Widget build(BuildContext context) => TextFormField(
     controller: widget.ctrl,
     obscureText: _obscure,
+    autocorrect: false,
+    enableSuggestions: false,
+    autofillHints: widget.disableAutofill ? const [] : const [AutofillHints.password],
     textInputAction: widget.onSubmit != null
         ? TextInputAction.done : TextInputAction.next,
     onFieldSubmitted: widget.onSubmit != null ? (_) => widget.onSubmit!() : null,
