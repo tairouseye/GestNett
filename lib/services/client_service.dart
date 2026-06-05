@@ -8,6 +8,7 @@ class ClientService {
   Future<List<Client>> getAll() async {
     final data = await _db
         .select()
+        .eq('created_by', _uid)
         .order('nom', ascending: true);
     return (data as List).map((m) => Client.fromMap(m)).toList();
   }
@@ -45,6 +46,7 @@ class ClientService {
   Future<List<Client>> search(String query) async {
     final data = await _db
         .select()
+        .eq('created_by', _uid)
         .ilike('nom', '%$query%')
         .order('nom', ascending: true);
     return (data as List).map((m) => Client.fromMap(m)).toList();

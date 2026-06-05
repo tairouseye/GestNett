@@ -10,6 +10,7 @@ class InvoiceService {
     final data = await _supabase
         .from('invoices')
         .select('*, clients(nom)')
+        .eq('created_by', _uid)
         .order('created_at', ascending: false);
     return (data as List).map((m) => Invoice.fromMap(m)).toList();
   }

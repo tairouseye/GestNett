@@ -8,6 +8,7 @@ class ExpenseService {
   Future<List<Expense>> getAll() async {
     final data = await _db
         .select('*, markets(numero)')
+        .eq('created_by', _uid)
         .order('date', ascending: false);
     return (data as List).map((m) => Expense.fromMap(m)).toList();
   }
