@@ -20,11 +20,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _loading = false;
   String? _error;
 
-  final _emailCtrl   = TextEditingController();
-  final _passCtrl    = TextEditingController();
-  final _confirmCtrl = TextEditingController();
-  final _codeCtrl    = TextEditingController();
-  final _newPassCtrl = TextEditingController();
+  final _emailCtrl      = TextEditingController();
+  final _passCtrl       = TextEditingController(); // login seulement
+  final _codeCtrl       = TextEditingController();
+  final _newPassCtrl    = TextEditingController();
   final _newConfirmCtrl = TextEditingController();
 
   String _forgotEmail = '';
@@ -33,7 +32,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
-    _confirmCtrl.dispose();
     _codeCtrl.dispose();
     _newPassCtrl.dispose();
     _newConfirmCtrl.dispose();
@@ -43,9 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _setMode(_Mode mode) => setState(() {
     _mode = mode;
     _error = null;
-    // Vider les champs mot de passe au changement de mode
     _passCtrl.clear();
-    _confirmCtrl.clear();
     _newPassCtrl.clear();
     _newConfirmCtrl.clear();
   });
@@ -79,47 +75,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  // ── Inscription ────────────────────────────────────────────────────────────
-
-  Future<void> _signup() async {
-    final email   = _emailCtrl.text.trim();
-    final pass    = _passCtrl.text;
-    final confirm = _confirmCtrl.text;
-    if (email.isEmpty || !email.contains('@')) {
-      setState(() => _error = 'Adresse email invalide');
-      return;
-    }
-    if (pass.length < 6) {
-      setState(() => _error = 'Mot de passe : 6 caractères minimum');
-      return;
-    }
-    if (pass != confirm) {
-      setState(() => _error = 'Les mots de passe ne correspondent pas');
-      return;
-    }
-    setState(() { _loading = true; _error = null; });
-    try {
-      await ref.read(authServiceProvider).signUp(email: email, password: pass);
-      if (mounted) {
-        // Basculer vers login avec l'email pré-rempli et message de succès
-        _passCtrl.clear();
-        _confirmCtrl.clear();
-        setState(() { _mode = _Mode.login; _loading = false; _error = null; });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✓ Compte créé ! Connectez-vous maintenant.'),
-            backgroundColor: AppColors.g600,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) setState(() {
-        _error = _friendlyError(e);
-        _loading = false;
-      });
-    }
-  }
+  // _signup géré dans _SignupCard
 
   // ── Mot de passe oublié — étape 1 : envoyer le code ───────────────────────
 
@@ -321,44 +277,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   // ── Carte Inscription ──────────────────────────────────────────────────────
 
-  Widget _buildSignup() => _Card(
+  Widget _buildSignup() => _SignupCard(
     key: const ValueKey('signup'),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _BackRow(onBack: () => _setMode(_Mode.login), title: 'Créer un compte'),
-        const SizedBox(height: 20),
-
-        _EmailField(_emailCtrl),
-        const SizedBox(height: 12),
-        _PasswordField(ctrl: _passCtrl, label: 'Mot de passe', disableAutofill: true),
-        const SizedBox(height: 12),
-        _PasswordField(
-            ctrl: _confirmCtrl,
-            label: 'Confirmer le mot de passe',
-            disableAutofill: true,
-            onSubmit: _signup),
-
-        _ErrorBox(_error),
-        const SizedBox(height: 20),
-
-        _SubmitButton(
-          loading: _loading,
-          label: 'Créer mon compte',
-          icon: Icons.person_add_outlined,
-          onPressed: _signup,
-        ),
-        const SizedBox(height: 12),
-
-        Center(
-          child: TextButton(
-            onPressed: () => _setMode(_Mode.login),
-            child: const Text('Déjà un compte ? Se connecter',
-                style: TextStyle(color: AppColors.g500, fontSize: 12)),
-          ),
-        ),
-      ],
-    ),
+    emailCtrl: _emailCtrl,
+    loading: _loading,
+    error: _error,
+    onSignup: (pass, confirm) async {
+      final email = _emailCtrl.text.trim();
+      if (email.isEmpty || !email.contains('@')) {
+        setState(() => _error = 'Adresse email invalide');
+        return;
+      }
+      if (pass.length < 6) {
+        setState(() => _error = 'Mot de passe : 6 caractères minimum');
+        return;
+      }
+      if (pass != confirm) {
+        setState(() => _error = 'Les mots de passe ne correspondent pas');
+        return;
+      }
+      setState(() { _loading = true; _error = null; });
+      try {
+        await ref.read(authServiceProvider).signUp(email: email, password: pass);
+        if (mounted) {
+          setState(() { _mode = _Mode.login; _loading = false; });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Compte créé ! Connectez-vous maintenant.'),
+              backgroundColor: AppColors.g600,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) setState(() { _error = _friendlyError(e); _loading = false; });
+      }
+    },
+    onBack: () => _setMode(_Mode.login),
   );
 
   // ── Carte Mot de passe oublié — étape 1 ───────────────────────────────────
@@ -676,6 +631,96 @@ class _LogoBlock extends StatelessWidget {
     const Text('Gestion PME · Dakar',
         style: TextStyle(color: AppColors.g300, fontSize: 12)),
   ]);
+}
+
+// ── Carte Inscription (StatefulWidget isolé pour éviter l'autofill) ──────────
+
+class _SignupCard extends StatefulWidget {
+  final TextEditingController emailCtrl;
+  final bool loading;
+  final String? error;
+  final Future<void> Function(String pass, String confirm) onSignup;
+  final VoidCallback onBack;
+  const _SignupCard({
+    super.key,
+    required this.emailCtrl,
+    required this.loading,
+    required this.error,
+    required this.onSignup,
+    required this.onBack,
+  });
+
+  @override
+  State<_SignupCard> createState() => _SignupCardState();
+}
+
+class _SignupCardState extends State<_SignupCard> {
+  // Contrôleurs locaux : le navigateur ne les lie pas au formulaire de login
+  final _passCtrl    = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Vider après que le navigateur ait éventuellement rempli
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _passCtrl.clear();
+      _confirmCtrl.clear();
+    });
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) { _passCtrl.clear(); _confirmCtrl.clear(); }
+    });
+  }
+
+  @override
+  void dispose() {
+    _passCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _BackRow(onBack: widget.onBack, title: 'Créer un compte'),
+          const SizedBox(height: 20),
+
+          _EmailField(widget.emailCtrl),
+          const SizedBox(height: 12),
+          _PasswordField(ctrl: _passCtrl, label: 'Mot de passe', disableAutofill: true),
+          const SizedBox(height: 12),
+          _PasswordField(
+            ctrl: _confirmCtrl,
+            label: 'Confirmer le mot de passe',
+            disableAutofill: true,
+            onSubmit: () => widget.onSignup(_passCtrl.text, _confirmCtrl.text),
+          ),
+
+          _ErrorBox(widget.error),
+          const SizedBox(height: 20),
+
+          _SubmitButton(
+            loading: widget.loading,
+            label: 'Créer mon compte',
+            icon: Icons.person_add_outlined,
+            onPressed: () => widget.onSignup(_passCtrl.text, _confirmCtrl.text),
+          ),
+          const SizedBox(height: 12),
+
+          Center(
+            child: TextButton(
+              onPressed: widget.onBack,
+              child: const Text('Déjà un compte ? Se connecter',
+                  style: TextStyle(color: AppColors.g500, fontSize: 12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _VersionText extends StatefulWidget {
