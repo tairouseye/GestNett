@@ -72,29 +72,24 @@ class AuthService {
   }
 
   Future<UserProfile?> _fetchOrCreateProfile(User user) async {
-    var data = await _client
-        .from('profiles')
-        .select()
-        .eq('id', user.id)
-        .maybeSingle();
-
-    if (data == null) {
-      // Créer automatiquement le profil si absent
-      await _client.from('profiles').upsert({
-        'id': user.id,
-        'email': user.email ?? '',
-        'nom': user.email?.split('@').first ?? 'Utilisateur',
-        'role': 'gestionnaire',
-        'created_at': DateTime.now().toIso8601String(),
-      });
-      data = await _client
+    // Le profil est créé automatiquement par le trigger on_auth_user_created
+    // On attend un peu si nécessaire (délai trigger)
+    for (var i = 0; i < 3; i++) {
+      final data = await _client
           .from('profiles')
           .select()
           .eq('id', user.id)
           .maybeSingle();
+      if (data != null) return UserProfile.fromMap(data);
+      await Future.delayed(const Duration(milliseconds: 500));
     }
-
-    if (data == null) return null;
-    return UserProfile.fromMap(data);
+    // Profil introuvable mais user connecté : retourner un profil minimal
+    return UserProfile(
+      id: user.id,
+      email: user.email ?? '',
+      nom: user.email?.split('@').first ?? 'Utilisateur',
+      role: 'gestionnaire',
+      createdAt: DateTime.now(),
+    );
   }
 }
