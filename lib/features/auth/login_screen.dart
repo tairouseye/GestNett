@@ -6,6 +6,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 
+enum _Mode { login, signup, forgotStep1, forgotStep2 }
+
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,28 +16,46 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailCtrl = TextEditingController();
-  final _codeCtrl  = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _loading   = false;
-  bool _codeSent  = false;
-  bool _usePassword = false; // mode secours
+  _Mode _mode = _Mode.login;
+  bool _loading = false;
   String? _error;
-  String  _email  = '';
+
+  final _emailCtrl   = TextEditingController();
+  final _passCtrl    = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  final _codeCtrl    = TextEditingController();
+  final _newPassCtrl = TextEditingController();
+  final _newConfirmCtrl = TextEditingController();
+
+  String _forgotEmail = '';
 
   @override
   void dispose() {
     _emailCtrl.dispose();
-    _codeCtrl.dispose();
     _passCtrl.dispose();
+    _confirmCtrl.dispose();
+    _codeCtrl.dispose();
+    _newPassCtrl.dispose();
+    _newConfirmCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loginWithPassword() async {
+  void _setMode(_Mode mode) => setState(() {
+    _mode = mode;
+    _error = null;
+  });
+
+  // ── Connexion ──────────────────────────────────────────────────────────────
+
+  Future<void> _login() async {
     final email = _emailCtrl.text.trim();
     final pass  = _passCtrl.text;
-    if (email.isEmpty || pass.length < 6) {
-      setState(() => _error = 'Email et mot de passe requis (6 caractères min)');
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _error = 'Adresse email invalide');
+      return;
+    }
+    if (pass.length < 6) {
+      setState(() => _error = 'Mot de passe : 6 caractères minimum');
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -48,15 +68,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (mounted) context.go('/');
       }
     } catch (e) {
-      if (mounted) setState(() => _error = 'Email ou mot de passe incorrect.');
+      if (mounted) setState(() => _error = _friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  // ── Étape 1 : envoyer le code ──────────────────────────────────────────────
+  // ── Inscription ────────────────────────────────────────────────────────────
 
-  Future<void> _sendCode() async {
+  Future<void> _signup() async {
+    final email   = _emailCtrl.text.trim();
+    final pass    = _passCtrl.text;
+    final confirm = _confirmCtrl.text;
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _error = 'Adresse email invalide');
+      return;
+    }
+    if (pass.length < 6) {
+      setState(() => _error = 'Mot de passe : 6 caractères minimum');
+      return;
+    }
+    if (pass != confirm) {
+      setState(() => _error = 'Les mots de passe ne correspondent pas');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      final profile = await ref.read(authServiceProvider).signUp(
+          email: email, password: pass);
+      if (profile == null) {
+        if (mounted) setState(() => _error = 'Inscription échouée. Cet email est peut-être déjà utilisé.');
+      } else {
+        if (mounted) context.go('/');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = _friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ── Mot de passe oublié — étape 1 : envoyer le code ───────────────────────
+
+  Future<void> _sendResetCode() async {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty || !email.contains('@')) {
       setState(() => _error = 'Adresse email invalide');
@@ -64,46 +118,86 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     setState(() { _loading = true; _error = null; });
     try {
-      await ref.read(authServiceProvider).sendOtp(email);
-      if (mounted) setState(() { _codeSent = true; _email = email; });
+      await ref.read(authServiceProvider).sendPasswordResetOtp(email);
+      if (mounted) {
+        setState(() {
+          _forgotEmail = email;
+          _mode = _Mode.forgotStep2;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = 'Erreur : $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() {
+        _error = _friendlyError(e);
+        _loading = false;
+      });
     }
   }
 
-  // ── Étape 2 : vérifier le code ─────────────────────────────────────────────
+  // ── Mot de passe oublié — étape 2 : vérifier + nouveau mot de passe ───────
 
-  Future<void> _verifyCode() async {
-    final code = _codeCtrl.text.trim();
+  Future<void> _resetPassword() async {
+    final code    = _codeCtrl.text.trim();
+    final newPass = _newPassCtrl.text;
+    final confirm = _newConfirmCtrl.text;
+
     if (code.length < 6) {
       setState(() => _error = 'Entrez le code reçu par email');
       return;
     }
+    if (newPass.length < 6) {
+      setState(() => _error = 'Nouveau mot de passe : 6 caractères minimum');
+      return;
+    }
+    if (newPass != confirm) {
+      setState(() => _error = 'Les mots de passe ne correspondent pas');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
-      final profile = await ref.read(authServiceProvider).verifyOtp(
-        email: _email,
-        token: code,
-      );
-      if (profile == null) {
-        if (mounted) setState(() => _error = 'Code invalide ou expiré. Renvoyez un nouveau code.');
-      } else {
-        if (mounted) context.go('/');
+      final auth = ref.read(authServiceProvider);
+      final ok = await auth.verifyPasswordResetOtp(
+          email: _forgotEmail, token: code);
+      if (!ok) {
+        if (mounted) setState(() {
+          _error = 'Code invalide ou expiré. Renvoyez un code.';
+          _loading = false;
+        });
+        return;
+      }
+      await auth.updatePassword(newPass);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mot de passe mis à jour avec succès !'),
+            backgroundColor: AppColors.g600,
+          ),
+        );
+        _emailCtrl.text = _forgotEmail;
+        _passCtrl.clear();
+        _confirmCtrl.clear();
+        _codeCtrl.clear();
+        _newPassCtrl.clear();
+        _newConfirmCtrl.clear();
+        setState(() { _mode = _Mode.login; _loading = false; });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = 'Code invalide ou expiré.');
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() {
+        _error = _friendlyError(e);
+        _loading = false;
+      });
     }
   }
 
-  void _back() => setState(() {
-    _codeSent = false;
-    _codeCtrl.clear();
-    _error = null;
-  });
+  String _friendlyError(Object e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('invalid login')) return 'Email ou mot de passe incorrect.';
+    if (msg.contains('already registered')) return 'Cet email est déjà utilisé.';
+    if (msg.contains('rate limit') || msg.contains('too many')) return 'Trop de tentatives. Attendez quelques minutes.';
+    if (msg.contains('user not found')) return 'Aucun compte avec cet email.';
+    if (msg.contains('sending')) return 'Erreur envoi email. Vérifiez votre adresse.';
+    return e.toString().replaceAll('Exception:', '').trim();
+  }
 
   // ── Build ──────────────────────────────────────────────────────────────────
 
@@ -119,58 +213,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const _LogoBlock(),
-                const SizedBox(height: 40),
+                const SizedBox(height: 36),
 
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 280),
                   transitionBuilder: (child, anim) => FadeTransition(
                     opacity: anim,
                     child: SlideTransition(
                       position: Tween<Offset>(
-                        begin: const Offset(0.1, 0),
+                        begin: const Offset(0.05, 0),
                         end: Offset.zero,
                       ).animate(anim),
                       child: child,
                     ),
                   ),
-                  child: _codeSent
-                      ? _CodeCard(
-                          key: const ValueKey('code'),
-                          email: _email,
-                          ctrl: _codeCtrl,
-                          loading: _loading,
-                          error: _error,
-                          onVerify: _verifyCode,
-                          onResend: _sendCode,
-                          onBack: _back,
-                        )
-                      : _usePassword
-                          ? _PasswordCard(
-                              key: const ValueKey('pass'),
-                              emailCtrl: _emailCtrl,
-                              passCtrl: _passCtrl,
-                              loading: _loading,
-                              error: _error,
-                              onLogin: _loginWithPassword,
-                              onSwitch: () => setState(() {
-                                _usePassword = false;
-                                _error = null;
-                              }),
-                            )
-                          : _EmailCard(
-                              key: const ValueKey('email'),
-                              ctrl: _emailCtrl,
-                              loading: _loading,
-                              error: _error,
-                              onSend: _sendCode,
-                              onSwitchToPassword: () => setState(() {
-                                _usePassword = true;
-                                _error = null;
-                              }),
-                            ),
+                  child: switch (_mode) {
+                    _Mode.login      => _buildLogin(),
+                    _Mode.signup     => _buildSignup(),
+                    _Mode.forgotStep1 => _buildForgotStep1(),
+                    _Mode.forgotStep2 => _buildForgotStep2(),
+                  },
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 const _VersionText(),
               ],
             ),
@@ -179,208 +244,223 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-}
 
-// ── Étape 1 : saisie email ────────────────────────────────────────────────────
+  // ── Carte Connexion ────────────────────────────────────────────────────────
 
-class _EmailCard extends StatelessWidget {
-  final TextEditingController ctrl;
-  final bool loading;
-  final String? error;
-  final VoidCallback onSend;
-  final VoidCallback onSwitchToPassword;
-  const _EmailCard({super.key, required this.ctrl, required this.loading,
-      required this.error, required this.onSend, required this.onSwitchToPassword});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Connexion',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center),
-          const SizedBox(height: 6),
-          const Text(
-            'Accès réservé au personnel D2SERVICES',
+  Widget _buildLogin() => _Card(
+    key: const ValueKey('login'),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Connexion',
+            style: Theme.of(context).textTheme.headlineSmall,
+            textAlign: TextAlign.center),
+        const SizedBox(height: 4),
+        const Text('Bienvenue sur GestNett',
             style: TextStyle(color: AppColors.g500, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 28),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 24),
 
-          TextFormField(
-            controller: ctrl,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => onSend(),
-            decoration: const InputDecoration(
-              labelText: 'Adresse email',
-              prefixIcon: Icon(Icons.email_outlined),
-              hintText: 'votre@email.com',
-            ),
-          ),
+        _EmailField(_emailCtrl),
+        const SizedBox(height: 12),
+        _PasswordField(ctrl: _passCtrl, label: 'Mot de passe',
+            onSubmit: _login),
 
-          _ErrorBox(error),
-          const SizedBox(height: 24),
+        _ErrorBox(_error),
+        const SizedBox(height: 8),
 
-          SizedBox(
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: loading ? null : onSend,
-              icon: loading
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white))
-                  : const Icon(Icons.send_outlined, size: 18),
-              label: Text(loading ? 'Envoi...' : 'Recevoir le code'),
-            ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => _setMode(_Mode.forgotStep1),
+            child: const Text('Mot de passe oublié ?',
+                style: TextStyle(color: AppColors.g500, fontSize: 12)),
           ),
-          const SizedBox(height: 12),
-          Center(
-            child: TextButton(
-              onPressed: onSwitchToPassword,
-              child: const Text(
-                'Connexion avec mot de passe',
-                style: TextStyle(color: AppColors.g500, fontSize: 12),
+        ),
+
+        const SizedBox(height: 8),
+        _SubmitButton(
+          loading: _loading,
+          label: 'Se connecter',
+          icon: Icons.login,
+          onPressed: _login,
+        ),
+        const SizedBox(height: 12),
+
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Text('Pas encore de compte ?',
+              style: TextStyle(color: AppColors.s400, fontSize: 12)),
+          TextButton(
+            onPressed: () => _setMode(_Mode.signup),
+            child: const Text('S\'inscrire',
+                style: TextStyle(
+                    color: AppColors.g400,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ]),
+      ],
+    ),
+  );
+
+  // ── Carte Inscription ──────────────────────────────────────────────────────
+
+  Widget _buildSignup() => _Card(
+    key: const ValueKey('signup'),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _BackRow(onBack: () => _setMode(_Mode.login), title: 'Créer un compte'),
+        const SizedBox(height: 20),
+
+        _EmailField(_emailCtrl),
+        const SizedBox(height: 12),
+        _PasswordField(ctrl: _passCtrl, label: 'Mot de passe'),
+        const SizedBox(height: 12),
+        _PasswordField(
+            ctrl: _confirmCtrl,
+            label: 'Confirmer le mot de passe',
+            onSubmit: _signup),
+
+        _ErrorBox(_error),
+        const SizedBox(height: 20),
+
+        _SubmitButton(
+          loading: _loading,
+          label: 'Créer mon compte',
+          icon: Icons.person_add_outlined,
+          onPressed: _signup,
+        ),
+        const SizedBox(height: 12),
+
+        Center(
+          child: TextButton(
+            onPressed: () => _setMode(_Mode.login),
+            child: const Text('Déjà un compte ? Se connecter',
+                style: TextStyle(color: AppColors.g500, fontSize: 12)),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  // ── Carte Mot de passe oublié — étape 1 ───────────────────────────────────
+
+  Widget _buildForgotStep1() => _Card(
+    key: const ValueKey('forgot1'),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _BackRow(onBack: () => _setMode(_Mode.login), title: 'Mot de passe oublié'),
+        const SizedBox(height: 8),
+        const Text(
+          'Entrez votre email. Vous recevrez un code pour créer un nouveau mot de passe.',
+          style: TextStyle(color: AppColors.s400, fontSize: 12),
+        ),
+        const SizedBox(height: 20),
+
+        _EmailField(_emailCtrl, onSubmit: _sendResetCode),
+
+        _ErrorBox(_error),
+        const SizedBox(height: 20),
+
+        _SubmitButton(
+          loading: _loading,
+          label: 'Recevoir le code',
+          icon: Icons.send_outlined,
+          onPressed: _sendResetCode,
+        ),
+      ],
+    ),
+  );
+
+  // ── Carte Mot de passe oublié — étape 2 ───────────────────────────────────
+
+  Widget _buildForgotStep2() => _Card(
+    key: const ValueKey('forgot2'),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _BackRow(
+            onBack: () => _setMode(_Mode.forgotStep1),
+            title: 'Nouveau mot de passe'),
+        const SizedBox(height: 8),
+
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.g50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.g100),
+          ),
+          child: Row(children: [
+            const Icon(Icons.mark_email_read_outlined,
+                color: AppColors.g600, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Code envoyé à $_forgotEmail',
+                style: const TextStyle(
+                    color: AppColors.g700, fontSize: 12),
               ),
             ),
+          ]),
+        ),
+        const SizedBox(height: 16),
+
+        TextFormField(
+          controller: _codeCtrl,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: 8,
+          autofocus: true,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: const TextStyle(
+              fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 8),
+          decoration: const InputDecoration(
+            labelText: 'Code reçu',
+            counterText: '',
+            hintText: '- - - - - - - -',
+            hintStyle: TextStyle(
+                letterSpacing: 8, fontSize: 20, color: AppColors.g300),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(height: 12),
+        _PasswordField(ctrl: _newPassCtrl, label: 'Nouveau mot de passe'),
+        const SizedBox(height: 12),
+        _PasswordField(
+            ctrl: _newConfirmCtrl,
+            label: 'Confirmer le mot de passe',
+            onSubmit: _resetPassword),
+
+        _ErrorBox(_error),
+        const SizedBox(height: 20),
+
+        _SubmitButton(
+          loading: _loading,
+          label: 'Changer le mot de passe',
+          icon: Icons.lock_reset_outlined,
+          onPressed: _resetPassword,
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: TextButton.icon(
+            onPressed: _loading ? null : _sendResetCode,
+            icon: const Icon(Icons.refresh, size: 14, color: AppColors.g500),
+            label: const Text('Renvoyer le code',
+                style: TextStyle(color: AppColors.g500, fontSize: 12)),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
-// ── Étape 2 : saisie code OTP ─────────────────────────────────────────────────
-
-class _CodeCard extends StatelessWidget {
-  final String email;
-  final TextEditingController ctrl;
-  final bool loading;
-  final String? error;
-  final VoidCallback onVerify;
-  final VoidCallback onResend;
-  final VoidCallback onBack;
-  const _CodeCard({super.key, required this.email, required this.ctrl,
-      required this.loading, required this.error, required this.onVerify,
-      required this.onResend, required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                onPressed: onBack,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 8),
-              Text('Vérification',
-                  style: Theme.of(context).textTheme.titleLarge),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.g50,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.g100),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.mark_email_read_outlined,
-                    color: AppColors.g600, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                          color: AppColors.g700, fontSize: 13),
-                      children: [
-                        const TextSpan(text: 'Code envoyé à\n'),
-                        TextSpan(
-                          text: email,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.g900),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          TextFormField(
-            controller: ctrl,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            maxLength: 8,
-            autofocus: true,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 10),
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => onVerify(),
-            decoration: const InputDecoration(
-              hintText: '00000000',
-              counterText: '',
-              hintStyle: TextStyle(
-                  letterSpacing: 10,
-                  fontSize: 24,
-                  color: AppColors.g300),
-            ),
-          ),
-
-          _ErrorBox(error),
-          const SizedBox(height: 20),
-
-          SizedBox(
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: loading ? null : onVerify,
-              icon: loading
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white))
-                  : const Icon(Icons.check_circle_outline, size: 18),
-              label: Text(loading ? 'Vérification...' : 'Se connecter'),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          Center(
-            child: TextButton.icon(
-              onPressed: loading ? null : onResend,
-              icon: const Icon(Icons.refresh, size: 16,
-                  color: AppColors.g600),
-              label: const Text('Renvoyer un code',
-                  style: TextStyle(color: AppColors.g600, fontSize: 13)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Widgets partagés ──────────────────────────────────────────────────────────
+// ── Widgets partagés ───────────────────────────────────────────────────────────
 
 class _Card extends StatelessWidget {
   final Widget child;
-  const _Card({required this.child});
+  const _Card({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -392,11 +472,109 @@ class _Card extends StatelessWidget {
           color: Colors.black.withValues(alpha: 0.18),
           blurRadius: 24,
           offset: const Offset(0, 8),
-        )
+        ),
       ],
     ),
     padding: const EdgeInsets.all(24),
     child: child,
+  );
+}
+
+class _BackRow extends StatelessWidget {
+  final VoidCallback onBack;
+  final String title;
+  const _BackRow({required this.onBack, required this.title});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    IconButton(
+      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+      onPressed: onBack,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+    ),
+    const SizedBox(width: 8),
+    Text(title, style: Theme.of(context).textTheme.titleLarge),
+  ]);
+}
+
+class _EmailField extends StatelessWidget {
+  final TextEditingController ctrl;
+  final VoidCallback? onSubmit;
+  const _EmailField(this.ctrl, {this.onSubmit});
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    controller: ctrl,
+    keyboardType: TextInputType.emailAddress,
+    textInputAction: onSubmit != null ? TextInputAction.done : TextInputAction.next,
+    onFieldSubmitted: onSubmit != null ? (_) => onSubmit!() : null,
+    decoration: const InputDecoration(
+      labelText: 'Adresse email',
+      prefixIcon: Icon(Icons.email_outlined),
+      hintText: 'votre@email.com',
+    ),
+  );
+}
+
+class _PasswordField extends StatefulWidget {
+  final TextEditingController ctrl;
+  final String label;
+  final VoidCallback? onSubmit;
+  const _PasswordField({required this.ctrl, required this.label, this.onSubmit});
+
+  @override
+  State<_PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<_PasswordField> {
+  bool _obscure = true;
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    controller: widget.ctrl,
+    obscureText: _obscure,
+    textInputAction: widget.onSubmit != null
+        ? TextInputAction.done : TextInputAction.next,
+    onFieldSubmitted: widget.onSubmit != null ? (_) => widget.onSubmit!() : null,
+    decoration: InputDecoration(
+      labelText: widget.label,
+      prefixIcon: const Icon(Icons.lock_outline),
+      suffixIcon: IconButton(
+        icon: Icon(_obscure
+            ? Icons.visibility_off_outlined
+            : Icons.visibility_outlined),
+        onPressed: () => setState(() => _obscure = !_obscure),
+      ),
+    ),
+  );
+}
+
+class _SubmitButton extends StatelessWidget {
+  final bool loading;
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  const _SubmitButton({
+    required this.loading,
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 50,
+    child: ElevatedButton.icon(
+      onPressed: loading ? null : onPressed,
+      icon: loading
+          ? const SizedBox(
+              width: 18, height: 18,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2.5, color: Colors.white))
+          : Icon(icon, size: 18),
+      label: Text(loading ? 'Chargement...' : label),
+    ),
   );
 }
 
@@ -415,111 +593,63 @@ class _ErrorBox extends StatelessWidget {
           color: AppColors.red.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline, color: AppColors.red, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(error!,
-                  style: const TextStyle(color: AppColors.red, fontSize: 13)),
-            ),
-          ],
-        ),
+        child: Row(children: [
+          const Icon(Icons.error_outline, color: AppColors.red, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(error!,
+                style: const TextStyle(color: AppColors.red, fontSize: 13)),
+          ),
+        ]),
       ),
     );
   }
 }
 
-// ── Carte mot de passe (option de secours) ───────────────────────────────────
-
-class _PasswordCard extends StatefulWidget {
-  final TextEditingController emailCtrl;
-  final TextEditingController passCtrl;
-  final bool loading;
-  final String? error;
-  final VoidCallback onLogin;
-  final VoidCallback onSwitch;
-  const _PasswordCard({super.key,
-    required this.emailCtrl, required this.passCtrl,
-    required this.loading, required this.error,
-    required this.onLogin, required this.onSwitch});
+class _LogoBlock extends StatelessWidget {
+  const _LogoBlock();
 
   @override
-  State<_PasswordCard> createState() => _PasswordCardState();
-}
-
-class _PasswordCardState extends State<_PasswordCard> {
-  bool _obscure = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                onPressed: widget.onSwitch,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 8),
-              Text('Connexion', style: Theme.of(context).textTheme.titleLarge),
-            ],
-          ),
-          const SizedBox(height: 20),
-          TextFormField(
-            controller: widget.emailCtrl,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.email_outlined),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: widget.passCtrl,
-            obscureText: _obscure,
-            onFieldSubmitted: (_) => widget.onLogin(),
-            decoration: InputDecoration(
-              labelText: 'Mot de passe',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(_obscure
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined),
-                onPressed: () => setState(() => _obscure = !_obscure),
-              ),
-            ),
-          ),
-          _ErrorBox(widget.error),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: widget.loading ? null : widget.onLogin,
-              icon: widget.loading
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white))
-                  : const Icon(Icons.login, size: 18),
-              label: Text(widget.loading ? 'Connexion...' : 'Se connecter'),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Center(
-            child: TextButton(
-              onPressed: widget.onSwitch,
-              child: const Text('Recevoir un code par email',
-                  style: TextStyle(color: AppColors.g500, fontSize: 12)),
-            ),
+  Widget build(BuildContext context) => Column(children: [
+    Container(
+      width: 96, height: 96,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-    );
-  }
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+      ),
+    ),
+    const SizedBox(height: 16),
+    RichText(
+      text: const TextSpan(children: [
+        TextSpan(
+          text: 'Gest',
+          style: TextStyle(
+              color: AppColors.white, fontSize: 30,
+              fontWeight: FontWeight.w800, letterSpacing: -0.5),
+        ),
+        TextSpan(
+          text: 'Nett',
+          style: TextStyle(
+              color: AppColors.g400, fontSize: 30,
+              fontWeight: FontWeight.w800, letterSpacing: -0.5),
+        ),
+      ]),
+    ),
+    const SizedBox(height: 4),
+    const Text('Gestion PME · Dakar',
+        style: TextStyle(color: AppColors.g300, fontSize: 12)),
+  ]);
 }
 
 class _VersionText extends StatefulWidget {
@@ -542,60 +672,7 @@ class _VersionTextState extends State<_VersionText> {
 
   @override
   Widget build(BuildContext context) => Text(
-    'CleanGest Sénégal${_version.isNotEmpty ? ' v$_version' : ''}',
+    'GestNett${_version.isNotEmpty ? ' v$_version' : ''}',
     style: const TextStyle(color: AppColors.g300, fontSize: 11),
   );
-}
-
-class _LogoBlock extends StatelessWidget {
-  const _LogoBlock();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 100, height: 100,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
-              )
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: Image.asset(
-              'assets/images/logo.png',
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        RichText(
-          text: const TextSpan(children: [
-            TextSpan(
-              text: 'Clean',
-              style: TextStyle(
-                  color: AppColors.white, fontSize: 30,
-                  fontWeight: FontWeight.w800, letterSpacing: -0.5),
-            ),
-            TextSpan(
-              text: 'Gest',
-              style: TextStyle(
-                  color: AppColors.g400, fontSize: 30,
-                  fontWeight: FontWeight.w800, letterSpacing: -0.5),
-            ),
-          ]),
-        ),
-        const SizedBox(height: 4),
-        const Text('D2SERVICES · Dakar',
-            style: TextStyle(color: AppColors.g300, fontSize: 12)),
-      ],
-    );
-  }
 }
