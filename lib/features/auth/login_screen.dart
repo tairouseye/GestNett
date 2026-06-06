@@ -38,9 +38,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _setMode(_Mode mode) => setState(() {
+  void _setMode(_Mode mode, {bool clearEmail = false}) => setState(() {
     _mode = mode;
     _error = null;
+    if (clearEmail) _emailCtrl.clear();
     _passCtrl.clear();
     _newPassCtrl.clear();
     _newConfirmCtrl.clear();
@@ -301,7 +302,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       try {
         await ref.read(authServiceProvider).signUp(email: email, password: pass);
         if (mounted) {
-          setState(() { _mode = _Mode.login; _loading = false; });
+          _setMode(_Mode.login, clearEmail: true);
+          setState(() => _loading = false);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('✓ Compte créé ! Connectez-vous maintenant.'),
@@ -314,7 +316,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (mounted) setState(() { _error = _friendlyError(e); _loading = false; });
       }
     },
-    onBack: () => _setMode(_Mode.login),
+    onBack: () => _setMode(_Mode.login, clearEmail: true),
   );
 
   // ── Carte Mot de passe oublié — étape 1 ───────────────────────────────────
