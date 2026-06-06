@@ -322,10 +322,11 @@ class _InvoicesSection extends StatelessWidget {
         else
           ...invoices.map((inv) {
             final sc = switch (inv.statut) {
-              InvoiceStatut.payee     => AppColors.g600,
-              InvoiceStatut.emise     => AppColors.orange,
-              InvoiceStatut.annulee   => AppColors.red,
-              InvoiceStatut.brouillon => AppColors.s400,
+              InvoiceStatut.payee        => AppColors.g600,
+              InvoiceStatut.payeePartiel => AppColors.gold,
+              InvoiceStatut.emise        => AppColors.orange,
+              InvoiceStatut.annulee      => AppColors.red,
+              InvoiceStatut.brouillon    => AppColors.s400,
             };
             return Card(
               margin: const EdgeInsets.only(bottom: 6),
