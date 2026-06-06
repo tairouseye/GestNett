@@ -17,7 +17,8 @@ class InvoiceWizardData {
   String clientNom;
   String clientAdresse;
   String? clientId;    // ID Supabase du client sélectionné
-  String? marketId;    // Marché associé (optionnel)
+  String? marketId;    // Marché associé (obligatoire)
+  String? marketNumero; // Numéro du marché pour affichage
   List<PrestationLine> prestations;
   double reductionPct;
   bool applyTva;
@@ -29,6 +30,7 @@ class InvoiceWizardData {
     this.clientAdresse = '',
     this.clientId,
     this.marketId,
+    this.marketNumero,
     List<PrestationLine>? prestations,
     this.reductionPct = 0,
     this.applyTva = false,
@@ -62,6 +64,8 @@ class InvoiceWizardData {
 
   bool get isValid =>
       clientNom.trim().isNotEmpty &&
+      clientId != null &&
+      marketId != null &&
       prestations.isNotEmpty &&
       prestations.every((p) => p.designation.trim().isNotEmpty && p.montant > 0);
 }

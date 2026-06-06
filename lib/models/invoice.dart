@@ -1,25 +1,28 @@
-enum InvoiceStatut { brouillon, emise, payee, annulee }
+enum InvoiceStatut { brouillon, emise, payeePartiel, payee, annulee }
 
 extension InvoiceStatutExt on InvoiceStatut {
   String get value => switch (this) {
-    InvoiceStatut.brouillon => 'brouillon',
-    InvoiceStatut.emise     => 'emise',
-    InvoiceStatut.payee     => 'payee',
-    InvoiceStatut.annulee   => 'annulee',
+    InvoiceStatut.brouillon   => 'brouillon',
+    InvoiceStatut.emise       => 'emise',
+    InvoiceStatut.payeePartiel => 'payee_partiel',
+    InvoiceStatut.payee       => 'payee',
+    InvoiceStatut.annulee     => 'annulee',
   };
 
   String get label => switch (this) {
-    InvoiceStatut.brouillon => 'Brouillon',
-    InvoiceStatut.emise     => 'Émise',
-    InvoiceStatut.payee     => 'Payée',
-    InvoiceStatut.annulee   => 'Annulée',
+    InvoiceStatut.brouillon   => 'Brouillon',
+    InvoiceStatut.emise       => 'Émise',
+    InvoiceStatut.payeePartiel => 'Acompte',
+    InvoiceStatut.payee       => 'Soldée',
+    InvoiceStatut.annulee     => 'Annulée',
   };
 
   static InvoiceStatut fromValue(String v) => switch (v) {
-    'emise'   => InvoiceStatut.emise,
-    'payee'   => InvoiceStatut.payee,
-    'annulee' => InvoiceStatut.annulee,
-    _         => InvoiceStatut.brouillon,
+    'emise'        => InvoiceStatut.emise,
+    'payee_partiel' => InvoiceStatut.payeePartiel,
+    'payee'        => InvoiceStatut.payee,
+    'annulee'      => InvoiceStatut.annulee,
+    _              => InvoiceStatut.brouillon,
   };
 }
 

@@ -141,10 +141,11 @@ class _InvoiceInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = switch (invoice.statut) {
-      InvoiceStatut.payee     => AppColors.g600,
-      InvoiceStatut.emise     => AppColors.orange,
-      InvoiceStatut.annulee   => AppColors.red,
-      InvoiceStatut.brouillon => AppColors.s400,
+      InvoiceStatut.payee        => AppColors.g600,
+      InvoiceStatut.payeePartiel => AppColors.gold,
+      InvoiceStatut.emise        => AppColors.orange,
+      InvoiceStatut.annulee      => AppColors.red,
+      InvoiceStatut.brouillon    => AppColors.s400,
     };
 
     return Card(
@@ -625,10 +626,13 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
         createdAt: DateTime.now(),
       ));
-      // Si paiement complet, marquer la facture comme payée
+      // Mettre à jour le statut selon le montant payé
       if (montant >= widget.restant - 1) {
         await InvoiceService()
             .updateStatut(widget.invoice.id, InvoiceStatut.payee);
+      } else {
+        await InvoiceService()
+            .updateStatut(widget.invoice.id, InvoiceStatut.payeePartiel);
       }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {

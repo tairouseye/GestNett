@@ -64,7 +64,7 @@ class _InvoiceWizardScreenState extends State<InvoiceWizardScreen> {
   }
 
   bool get _canGoNext => switch (_step) {
-    0 => _data.clientNom.trim().isNotEmpty,
+    0 => _data.clientId != null && _data.marketId != null,
     1 => _data.prestations.isNotEmpty &&
         _data.prestations.every(
             (p) => p.designation.trim().isNotEmpty && p.montant > 0),
@@ -314,25 +314,18 @@ class _StepClient extends StatefulWidget {
 }
 
 class _StepClientState extends State<_StepClient> {
-  late final TextEditingController _nomCtrl;
-  late final TextEditingController _adresseCtrl;
   late final TextEditingController _dateCtrl;
   List<dynamic> _clients = [];
-
-  static const _adresseSuggestions = [
-    'Almadies', 'Plateau', 'Ouakam', 'Mermoz',
-    'Point E', 'Liberté 6', 'Parcelles Assainies',
-  ];
+  List<dynamic> _markets = [];
+  String get _uid => Supabase.instance.client.auth.currentUser!.id;
 
   @override
   void initState() {
     super.initState();
-    _nomCtrl = TextEditingController(text: widget.data.clientNom);
-    _adresseCtrl = TextEditingController(text: widget.data.clientAdresse);
     _dateCtrl = TextEditingController(
-        text: DateFormat('dd MMMM yyyy', 'fr_FR')
-            .format(widget.data.date));
+        text: DateFormat('dd MMMM yyyy', 'fr_FR').format(widget.data.date));
     _loadClients();
+    if (widget.data.clientId != null) _loadMarkets(widget.data.clientId!);
   }
 
   Future<void> _loadClients() async {
@@ -340,24 +333,52 @@ class _StepClientState extends State<_StepClient> {
       final clients = await Supabase.instance.client
           .from('clients')
           .select('id, nom, adresse')
+          .eq('created_by', _uid)
           .order('nom');
       if (mounted) setState(() => _clients = clients as List);
     } catch (_) {}
   }
 
+  Future<void> _loadMarkets(String clientId) async {
+    try {
+      final markets = await Supabase.instance.client
+          .from('markets')
+          .select('id, numero, description')
+          .eq('client_id', clientId)
+          .eq('created_by', _uid)
+          .order('created_at', ascending: false);
+      if (mounted) {
+        setState(() {
+          _markets = markets as List;
+          // Réinitialiser le marché si plus disponible
+          if (widget.data.marketId != null &&
+              !_markets.any((m) => m['id'] == widget.data.marketId)) {
+            widget.data.marketId = null;
+            widget.data.marketNumero = null;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   void _selectClient(Map client) {
-    _nomCtrl.text = client['nom'] as String;
-    _adresseCtrl.text = client['adresse'] as String? ?? '';
     widget.data.clientNom = client['nom'] as String;
     widget.data.clientAdresse = client['adresse'] as String? ?? '';
     widget.data.clientId = client['id'] as String;
+    widget.data.marketId = null;
+    widget.data.marketNumero = null;
+    _loadMarkets(client['id'] as String);
+    widget.onChange();
+  }
+
+  void _selectMarket(Map market) {
+    widget.data.marketId = market['id'] as String;
+    widget.data.marketNumero = market['numero'] as String?;
     widget.onChange();
   }
 
   @override
   void dispose() {
-    _nomCtrl.dispose();
-    _adresseCtrl.dispose();
     _dateCtrl.dispose();
     super.dispose();
   }
@@ -372,10 +393,54 @@ class _StepClientState extends State<_StepClient> {
     );
     if (d != null) {
       widget.data.date = d;
-      _dateCtrl.text =
-          DateFormat('dd MMMM yyyy', 'fr_FR').format(d);
+      _dateCtrl.text = DateFormat('dd MMMM yyyy', 'fr_FR').format(d);
       widget.onChange();
     }
+  }
+
+  Widget _dropdown({
+    required List<dynamic> items,
+    required String? value,
+    required String hint,
+    required String Function(dynamic) label,
+    required String Function(dynamic) id,
+    required ValueChanged<dynamic> onSelect,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.g300),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: ButtonTheme(
+          alignedDropdown: true,
+          child: DropdownButton<String>(
+            isExpanded: true,
+            hint: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(hint, style: const TextStyle(color: AppColors.s400)),
+            ),
+            value: value,
+            items: items.map<DropdownMenuItem<String>>((item) {
+              return DropdownMenuItem<String>(
+                value: id(item),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(label(item), overflow: TextOverflow.ellipsis),
+                ),
+              );
+            }).toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              final item = items.firstWhere((i) => id(i) == v);
+              onSelect(item);
+              setState(() {});
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -385,105 +450,61 @@ class _StepClientState extends State<_StepClient> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sélecteur client depuis la base de données
-          if (_clients.isNotEmpty) ...[
-            _StepQuestion(icon: '🔍', question: 'Sélectionner un client enregistré'),
-            const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.g300),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: ButtonTheme(
-                  alignedDropdown: true,
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    hint: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('— Choisir un client existant —'),
-                    ),
-                    value: widget.data.clientId,
-                    items: _clients.map<DropdownMenuItem<String>>((c) {
-                      return DropdownMenuItem<String>(
-                        value: c['id'] as String,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(c['nom'] as String,
-                              overflow: TextOverflow.ellipsis),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (id) {
-                      if (id == null) return;
-                      final client = _clients.firstWhere((c) => c['id'] == id);
-                      _selectClient(client as Map);
-                      setState(() {});
-                    },
-                  ),
-                ),
-              ),
+          // ── Client ────────────────────────────────────────────────
+          _StepQuestion(icon: '👤', question: 'Client *'),
+          const SizedBox(height: 10),
+          if (_clients.isEmpty)
+            _InfoBox(
+              icon: Icons.info_outline,
+              color: AppColors.orange,
+              text: 'Aucun client trouvé. Créez d\'abord un client dans l\'onglet Clients.',
+            )
+          else
+            _dropdown(
+              items: _clients,
+              value: widget.data.clientId,
+              hint: '— Sélectionner un client —',
+              label: (c) => c['nom'] as String,
+              id: (c) => c['id'] as String,
+              onSelect: (c) => _selectClient(c as Map),
             ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 8),
-          ],
 
-          _StepQuestion(
-            icon: '👤',
-            question: 'Ou saisir manuellement :',
-          ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 20),
 
-          // Champ nom
-          _WizardField(
-            controller: _nomCtrl,
-            label: 'Nom du client *',
-            icon: Icons.person_outline,
-            onChanged: (v) {
-              widget.data.clientNom = v;
-              widget.onChange();
-            },
-          ),
-          const SizedBox(height: 16),
+          // ── Marché ────────────────────────────────────────────────
+          _StepQuestion(icon: '🤝', question: 'Marché *'),
+          const SizedBox(height: 10),
+          if (widget.data.clientId == null)
+            const _InfoBox(
+              icon: Icons.info_outline,
+              color: AppColors.s400,
+              text: 'Sélectionnez d\'abord un client pour voir ses marchés.',
+            )
+          else if (_markets.isEmpty)
+            _InfoBox(
+              icon: Icons.warning_amber_outlined,
+              color: AppColors.orange,
+              text: 'Aucun marché pour ce client. Créez-en un dans l\'onglet Marchés.',
+            )
+          else
+            _dropdown(
+              items: _markets,
+              value: widget.data.marketId,
+              hint: '— Sélectionner un marché —',
+              label: (m) {
+                final num = m['numero'] as String? ?? '';
+                final desc = m['description'] as String? ?? '';
+                return desc.isNotEmpty ? '$num – $desc' : num;
+              },
+              id: (m) => m['id'] as String,
+              onSelect: (m) => _selectMarket(m as Map),
+            ),
 
-          _StepQuestion(
-            icon: '📍',
-            question: 'Quelle est son adresse ?',
-          ),
+          const SizedBox(height: 20),
+
+          // ── Date ──────────────────────────────────────────────────
+          _StepQuestion(icon: '📅', question: 'Date de la facture'),
           const SizedBox(height: 12),
-
-          Wrap(
-            spacing: 8, runSpacing: 8,
-            children: _adresseSuggestions
-                .map((s) => _QuickChip(
-                  label: s,
-                  selected: _adresseCtrl.text == s,
-                  onTap: () {
-                    _adresseCtrl.text = s;
-                    widget.data.clientAdresse = s;
-                    widget.onChange();
-                  },
-                ))
-                .toList(),
-          ),
-          const SizedBox(height: 12),
-
-          _WizardField(
-            controller: _adresseCtrl,
-            label: 'Adresse',
-            icon: Icons.location_on_outlined,
-            onChanged: (v) {
-              widget.data.clientAdresse = v;
-              widget.onChange();
-            },
-          ),
-          const SizedBox(height: 16),
-
-          _StepQuestion(icon: '📅', question: 'Date de la facture ?'),
-          const SizedBox(height: 12),
-
           GestureDetector(
             onTap: _pickDate,
             child: AbsorbPointer(
@@ -495,6 +516,15 @@ class _StepClientState extends State<_StepClient> {
               ),
             ),
           ),
+
+          // ── Indicateur de validation ──────────────────────────────
+          const SizedBox(height: 20),
+          if (widget.data.clientId != null && widget.data.marketId != null)
+            _InfoBox(
+              icon: Icons.check_circle_outline,
+              color: AppColors.g600,
+              text: '${widget.data.clientNom}  ·  ${widget.data.marketNumero ?? 'Marché sélectionné'}\nAppuyez sur "Suivant" pour continuer.',
+            ),
         ],
       ),
     );
@@ -1208,40 +1238,38 @@ class _StepFinishState extends State<_StepFinish> {
       final bytes = await PdfService.generateInvoice(widget.data, settings: _settings);
       if (!mounted) return;
       setState(() { _pdfBytes = bytes; _generating = false; });
-      // Sauvegarder en DB si un client est lié
-      if (widget.data.clientId != null) {
-        await _saveToDatabase(bytes);
-      }
+      // Sauvegarder en DB — clientId et marketId sont garantis par le wizard
+      await _saveToDatabase(bytes);
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _generating = false; });
     }
   }
 
   Future<void> _saveToDatabase(Uint8List bytes) async {
-    try {
-      final d = widget.data;
-      // 1. Créer la facture en DB
-      final invoice = await InvoiceService().create(Invoice(
-        id: '',
-        numero: '',
-        clientId: d.clientId!,
-        marketId: d.marketId,
-        date: d.date,
-        montantHt: d.netHT,
-        tvaPct: d.applyTva ? 18.0 : 0.0,
-        totalTtc: d.totalTTC,
-        statut: InvoiceStatut.emise,
-        createdAt: DateTime.now(),
-      ));
-      _savedInvoiceId = invoice.id;
-      // 2. Uploader le PDF et lier à la facture
-      final pdfUrl = await StorageService.uploadPdf(bytes, '${invoice.numero}.pdf');
-      await InvoiceService().updatePdfUrl(invoice.id, pdfUrl);
-      // Mettre à jour le numéro dans les données du wizard
-      if (mounted) setState(() => widget.data.numero = invoice.numero);
-    } catch (_) {
-      // Échec silencieux — le PDF reste utilisable même sans sauvegarde DB
+    final d = widget.data;
+    if (d.clientId == null || d.marketId == null) {
+      setState(() => _error = 'Client ou marché manquant — impossible de sauvegarder.');
+      return;
     }
+    // 1. Créer la facture en DB
+    final invoice = await InvoiceService().create(Invoice(
+      id: '',
+      numero: '',
+      clientId: d.clientId!,
+      marketId: d.marketId,
+      date: d.date,
+      montantHt: d.netHT,
+      tvaPct: d.applyTva ? 18.0 : 0.0,
+      totalTtc: d.totalTTC,
+      statut: InvoiceStatut.emise,
+      createdAt: DateTime.now(),
+    ));
+    _savedInvoiceId = invoice.id;
+    // 2. Uploader le PDF et lier à la facture
+    final pdfUrl = await StorageService.uploadPdf(bytes, '${invoice.numero}.pdf');
+    await InvoiceService().updatePdfUrl(invoice.id, pdfUrl);
+    // Mettre à jour le numéro dans les données du wizard
+    if (mounted) setState(() => widget.data.numero = invoice.numero);
   }
 
   Future<void> _preview() async {

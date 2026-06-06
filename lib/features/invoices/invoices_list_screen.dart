@@ -69,10 +69,11 @@ class _InvoiceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = switch (invoice.statut) {
-      InvoiceStatut.payee     => AppColors.g600,
-      InvoiceStatut.emise     => AppColors.orange,
-      InvoiceStatut.annulee   => AppColors.red,
-      InvoiceStatut.brouillon => AppColors.s400,
+      InvoiceStatut.payee        => AppColors.g600,
+      InvoiceStatut.payeePartiel => AppColors.gold,
+      InvoiceStatut.emise        => AppColors.orange,
+      InvoiceStatut.annulee      => AppColors.red,
+      InvoiceStatut.brouillon    => AppColors.s400,
     };
 
     return InkWell(
