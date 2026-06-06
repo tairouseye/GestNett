@@ -35,10 +35,20 @@ class InvoiceService {
   }
 
   Future<Invoice> create(Invoice invoice) async {
-    final seq = await _nextSequence();
+    // Récupérer le numéro du marché pour la codification
+    final marketData = await _supabase
+        .from('markets')
+        .select('numero')
+        .eq('id', invoice.marketId!)
+        .single();
+    final marketNumero = marketData['numero'] as String;
+
+    final seq = await _nextSequenceForMarket(invoice.marketId!);
+    final numero = '$marketNumero-F${seq.toString().padLeft(2, '0')}';
+
     final insertData = {
       ...invoice.toInsertMap(),
-      'numero': 'FAC-${DateTime.now().year}-${seq.toString().padLeft(3, '0')}',
+      'numero': numero,
       'created_at': DateTime.now().toIso8601String(),
       'created_by': _uid,
     };
@@ -79,18 +89,13 @@ class InvoiceService {
     return payments.fold<double>(0.0, (sum, p) => sum + p.montant);
   }
 
-  Future<int> _nextSequence() async {
-    final year = DateTime.now().year;
+  /// Compte les factures existantes pour ce marché → donne le prochain numéro de séquence.
+  Future<int> _nextSequenceForMarket(String marketId) async {
     final data = await _supabase
         .from('invoices')
-        .select('numero')
-        .like('numero', 'FAC-$year-%')
-        .order('numero', ascending: false)
-        .limit(1)
-        .maybeSingle();
-    if (data == null) return 1;
-    final last = data['numero'] as String;
-    final seq = int.tryParse(last.split('-').last) ?? 0;
-    return seq + 1;
+        .select('id')
+        .eq('market_id', marketId)
+        .count();
+    return data.count + 1;
   }
 }

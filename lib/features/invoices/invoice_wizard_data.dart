@@ -40,11 +40,7 @@ class InvoiceWizardData {
         date = date ?? DateTime.now(),
         numero = numero ?? _generateNumero();
 
-  static String _generateNumero() {
-    final year = DateTime.now().year;
-    final seq = DateTime.now().millisecondsSinceEpoch % 1000;
-    return 'FAC-$year-${seq.toString().padLeft(3, '0')}';
-  }
+  static String _generateNumero() => 'En attente…';
 
   // ─── Calculs ───────────────────────────────────────────────────────────────
 
