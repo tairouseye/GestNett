@@ -35,7 +35,7 @@ class InvoiceService {
   }
 
   Future<Invoice> create(Invoice invoice) async {
-    // Récupérer le numéro du marché pour la codification
+    // Numéro du marché : SONATEL-MRK001-2026
     final marketData = await _supabase
         .from('markets')
         .select('numero')
@@ -43,8 +43,9 @@ class InvoiceService {
         .single();
     final marketNumero = marketData['numero'] as String;
 
+    // Séquence propre à ce marché → SONATEL-MRK001-2026-0001
     final seq = await _nextSequenceForMarket(invoice.marketId!);
-    final numero = '$marketNumero-F${seq.toString().padLeft(2, '0')}';
+    final numero = '$marketNumero-${seq.toString().padLeft(3, '0')}';
 
     final insertData = {
       ...invoice.toInsertMap(),
@@ -89,7 +90,6 @@ class InvoiceService {
     return payments.fold<double>(0.0, (sum, p) => sum + p.montant);
   }
 
-  /// Compte les factures existantes pour ce marché → donne le prochain numéro de séquence.
   Future<int> _nextSequenceForMarket(String marketId) async {
     final data = await _supabase
         .from('invoices')

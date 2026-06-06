@@ -35,10 +35,29 @@ class MarketService {
   }
 
   Future<Market> create(Market market) async {
-    final seq = await _nextSequence();
+    // Nom du client en majuscules sans espaces pour la codification
+    final clientData = await _supabase
+        .from('clients')
+        .select('nom')
+        .eq('id', market.clientId)
+        .single();
+    final clientCode = (clientData['nom'] as String)
+        .toUpperCase()
+        .replaceAll(' ', '');
+
+    // Séquence propre à ce client (combien de marchés il a déjà)
+    final seqData = await _supabase
+        .from('markets')
+        .select('id')
+        .eq('client_id', market.clientId)
+        .count();
+    final seq = seqData.count + 1;
+
+    final numero = '$clientCode-MRK${seq.toString().padLeft(3, '0')}-${DateTime.now().year}';
+
     final insertData = {
       ...market.toInsertMap(),
-      'numero': 'MRK-${DateTime.now().year}-${seq.toString().padLeft(3, '0')}',
+      'numero': numero,
       'created_at': DateTime.now().toIso8601String(),
       'created_by': _uid,
     };
@@ -70,11 +89,4 @@ class MarketService {
     return Market.fromMap(data);
   }
 
-  Future<int> _nextSequence() async {
-    final data = await _supabase
-        .from('markets')
-        .select('id')
-        .count();
-    return data.count + 1;
-  }
 }
