@@ -636,8 +636,6 @@ class _LogoBlock extends StatelessWidget {
       ]),
     ),
     const SizedBox(height: 4),
-    const Text('Gestion Professionnelle · Dakar',
-        style: TextStyle(color: AppColors.g300, fontSize: 12)),
   ]);
 }
 
