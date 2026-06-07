@@ -30,7 +30,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Bas de page légal
   final _nineaCtrl   = TextEditingController();
   final _rccmCtrl    = TextEditingController();
-  final _compteCtrl  = TextEditingController();
+  final _ibanCtrl    = TextEditingController();
+  final _banqueCtrl  = TextEditingController();
 
   String? _logoUrl;
   String? _signatureUrl;
@@ -52,7 +53,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _emailCtrl.dispose();
     _nineaCtrl.dispose();
     _rccmCtrl.dispose();
-    _compteCtrl.dispose();
+    _ibanCtrl.dispose();
+    _banqueCtrl.dispose();
     super.dispose();
   }
 
@@ -71,7 +73,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _emailCtrl.text   = s.email ?? '';
           _nineaCtrl.text   = s.ninea ?? '';
           _rccmCtrl.text    = s.rccm ?? '';
-          _compteCtrl.text  = s.compteBancaire ?? '';
+          _ibanCtrl.text    = s.iban ?? '';
+          _banqueCtrl.text  = s.nomBanque ?? '';
           _logoUrl          = s.logoUrl;
           _signatureUrl     = s.signatureUrl;
         }
@@ -125,9 +128,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         telephone:      _v(_tel1Ctrl),
         telephone2:     _v(_tel2Ctrl),
         email:          _v(_emailCtrl),
-        ninea:          _v(_nineaCtrl),
-        rccm:           _v(_rccmCtrl),
-        compteBancaire: _v(_compteCtrl),
+        ninea:     _v(_nineaCtrl),
+        rccm:      _v(_rccmCtrl),
+        iban:      _v(_ibanCtrl),
+        nomBanque: _v(_banqueCtrl),
         logoUrl:        _logoUrl,
         signatureUrl:   _signatureUrl,
       );
@@ -218,7 +222,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 12),
                     _field(ctrl: _rccmCtrl, label: 'RCCM', hint: 'Ex: SN DKR 2018 B 12345', prefixIcon: Icons.business_outlined),
                     const SizedBox(height: 12),
-                    _field(ctrl: _compteCtrl, label: 'Numéro de compte bancaire', hint: 'Optionnel', prefixIcon: Icons.account_balance_outlined),
+                    _field(ctrl: _banqueCtrl, label: 'Nom de la banque', hint: 'Ex: Ecobank, CBAO, BHS...', prefixIcon: Icons.account_balance_outlined),
+                    const SizedBox(height: 12),
+                    _field(ctrl: _ibanCtrl, label: 'IBAN / N° de compte', hint: 'Ex: SN28 0100 1234 5678 9012 3456 789', prefixIcon: Icons.credit_card_outlined),
                     const SizedBox(height: 32),
 
                     // ── Bouton sauvegarder ─────────────────────────────────

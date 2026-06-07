@@ -10,7 +10,8 @@ class CompanySettings {
   final String? email;
   final String? ninea;
   final String? rccm;
-  final String? compteBancaire;
+  final String? iban;
+  final String? nomBanque;
   final String? logoUrl;
   final String? signatureUrl;
   final String devise;
@@ -27,7 +28,8 @@ class CompanySettings {
     this.email,
     this.ninea,
     this.rccm,
-    this.compteBancaire,
+    this.iban,
+    this.nomBanque,
     this.logoUrl,
     this.signatureUrl,
     this.devise = 'FCFA',
@@ -45,7 +47,8 @@ class CompanySettings {
         email:         m['email'] as String?,
         ninea:         m['ninea'] as String?,
         rccm:          m['rccm'] as String?,
-        compteBancaire: m['compte_bancaire'] as String?,
+        iban:          m['iban'] as String?,
+        nomBanque:     m['nom_banque'] as String?,
         logoUrl:       m['logo_url'] as String?,
         signatureUrl:  m['signature_url'] as String?,
         devise:        m['devise'] as String? ?? 'FCFA',
@@ -62,7 +65,8 @@ class CompanySettings {
         'email':          email,
         'ninea':          ninea,
         'rccm':           rccm,
-        'compte_bancaire': compteBancaire,
+        'iban':        iban,
+        'nom_banque':  nomBanque,
         'logo_url':       logoUrl,
         'signature_url':  signatureUrl,
         'devise':         devise,
@@ -78,7 +82,8 @@ class CompanySettings {
     String? email,
     String? ninea,
     String? rccm,
-    String? compteBancaire,
+    String? iban,
+    String? nomBanque,
     String? logoUrl,
     String? signatureUrl,
     String? devise,
@@ -95,7 +100,8 @@ class CompanySettings {
         email:         email        ?? this.email,
         ninea:         ninea        ?? this.ninea,
         rccm:          rccm         ?? this.rccm,
-        compteBancaire: compteBancaire ?? this.compteBancaire,
+        iban:          iban      ?? this.iban,
+        nomBanque:     nomBanque ?? this.nomBanque,
         logoUrl:       logoUrl      ?? this.logoUrl,
         signatureUrl:  signatureUrl ?? this.signatureUrl,
         devise:        devise       ?? this.devise,

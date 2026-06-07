@@ -413,14 +413,22 @@ class PdfService {
   // PIED DE PAGE LÉGAL : NINEA | RCCM | Compte
   // ─────────────────────────────────────────────────────────────────────────────
   static pw.Widget _buildFooter(CompanySettings? settings) {
-    final parts = <String>[];
-    final ninea  = settings?.ninea;
-    final rccm   = settings?.rccm;
-    final compte = settings?.compteBancaire;
+    final parts   = <String>[];
+    final ninea   = settings?.ninea;
+    final rccm    = settings?.rccm;
+    final iban    = settings?.iban;
+    final banque  = settings?.nomBanque;
 
     if (ninea  != null && ninea.isNotEmpty)  parts.add('NINEA : $ninea');
     if (rccm   != null && rccm.isNotEmpty)   parts.add('RCCM : $rccm');
-    if (compte != null && compte.isNotEmpty) parts.add('Compte : $compte');
+
+    if (banque != null && banque.isNotEmpty && iban != null && iban.isNotEmpty) {
+      parts.add('$banque – IBAN : $iban');
+    } else if (iban != null && iban.isNotEmpty) {
+      parts.add('IBAN : $iban');
+    } else if (banque != null && banque.isNotEmpty) {
+      parts.add(banque);
+    }
 
     if (parts.isEmpty) return pw.SizedBox.shrink();
 
