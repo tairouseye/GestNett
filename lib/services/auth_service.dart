@@ -35,25 +35,9 @@ class AuthService {
     return _fetchOrCreateProfile(res.user!);
   }
 
-  /// Envoie un code OTP à 6 chiffres par email (connexion sans mot de passe)
+  /// Envoie un lien de connexion par email (cliquer = connecté directement)
   Future<void> sendLoginOtp(String email) async {
-    await _client.auth.signInWithOtp(
-      email: email,
-      shouldCreateUser: false,
-    );
-  }
-
-  /// Vérifie le code OTP et connecte l'utilisateur directement
-  Future<bool> verifyLoginOtp({
-    required String email,
-    required String token,
-  }) async {
-    final res = await _client.auth.verifyOTP(
-      email: email,
-      token: token,
-      type: OtpType.email,
-    );
-    return res.user != null;
+    await _client.auth.resetPasswordForEmail(email);
   }
 
   /// Met à jour le mot de passe de l'utilisateur connecté (depuis les réglages)
