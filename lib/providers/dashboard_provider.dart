@@ -31,7 +31,7 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   final supabase = Supabase.instance.client;
   final uid = supabase.auth.currentUser!.id;
 
-  final results = await Future.wait([
+  final results = await Future.wait<dynamic>([
     // Marchés actifs
     supabase.from('markets').select('id').eq('created_by', uid).eq('statut', 'en_cours').count(),
     // Factures (sauf annulées)
@@ -49,11 +49,11 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
         .count(),
   ]);
 
-  final marchesActifs  = (results[0] as PostgrestCountResponse).count;
-  final invoicesList   = results[1] as List;
-  final paymentsList   = results[2] as List;
-  final expensesList   = results[3] as List;
-  final clientsEnRetard = (results[4] as PostgrestCountResponse).count;
+  final marchesActifs   = (results[0].count as int?) ?? 0;
+  final invoicesList    = results[1] as List;
+  final paymentsList    = results[2] as List;
+  final expensesList    = results[3] as List;
+  final clientsEnRetard = (results[4].count as int?) ?? 0;
 
   final totalFacture  = invoicesList.fold<double>(0, (s, r) => s + ((r['total_ttc'] as num?)?.toDouble() ?? 0));
   final totalEncaisse = paymentsList.fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));

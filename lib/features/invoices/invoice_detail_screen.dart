@@ -249,11 +249,8 @@ class _PdfActionsCardState extends State<_PdfActionsCard> {
   });
 
   Future<void> _shareEmail(BuildContext context) => _withBusy(() async {
-    final pdfUrl = await _ensurePdfUrl();
-    final subject = Uri.encodeComponent('Facture D2SERVICES – ${invoice.numero}');
-    final body = Uri.encodeComponent(
-      '$_waMsg${pdfUrl != null ? '\n\n📎 PDF : $pdfUrl' : ''}',
-    );
+    final subject = Uri.encodeComponent('Facture – ${invoice.numero}');
+    final body    = Uri.encodeComponent(_waMsg);
     if (!await _launch(Uri.parse('mailto:?subject=$subject&body=$body'))) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
