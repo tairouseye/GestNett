@@ -166,11 +166,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'Email ou mot de passe incorrect.\n(Si vous venez de vous inscrire, réessayez dans quelques secondes)';
     }
     if (msg.contains('already registered') || msg.contains('user already')) return 'Cet email est déjà utilisé.';
-    if (msg.contains('rate limit') || msg.contains('too many')) return 'Trop de tentatives. Attendez quelques minutes.';
+    if (msg.contains('rate limit') || msg.contains('too many') || msg.contains('over_email_send_rate_limit')) {
+      return 'Limite d\'emails atteinte. Attendez quelques minutes avant de réessayer.';
+    }
     if (msg.contains('user not found')) return 'Aucun compte avec cet email.';
     if (msg.contains('email not confirmed')) return 'Email non confirmé. Désactivez la confirmation dans Supabase.';
+    if (msg.contains('retryablefetch') || msg.contains('network') || msg.contains('socketexception') || msg.contains('clientexception')) {
+      return 'Erreur réseau. Vérifiez votre connexion et réessayez.\n(Détail: ${e.runtimeType})';
+    }
     // Afficher l'erreur brute pour faciliter le diagnostic
-    return e.toString().replaceAll('AuthException', '').replaceAll('Exception:', '').trim();
+    return '${e.runtimeType}: ${e.toString().replaceAll('AuthException', '').replaceAll('Exception:', '').trim()}';
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
