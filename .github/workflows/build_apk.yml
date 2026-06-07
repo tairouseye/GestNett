@@ -34,6 +34,9 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons
+
       - name: Build Web
         run: flutter build web --release --base-href /GestNett/
 
@@ -77,12 +80,15 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons
+
       - name: Build APK
         run: flutter build apk --release --split-per-abi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: gestnett-apk
+          name: gespro-apk
           path: build/app/outputs/flutter-apk/*.apk
           retention-days: 30
