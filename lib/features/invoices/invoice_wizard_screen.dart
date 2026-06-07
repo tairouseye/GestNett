@@ -1269,11 +1269,14 @@ class _StepFinishState extends State<_StepFinish> {
       createdAt: DateTime.now(),
     ));
     _savedInvoiceId = invoice.id;
-    // 2. Uploader le PDF et lier à la facture
-    final pdfUrl = await StorageService.uploadPdf(bytes, '${invoice.numero}.pdf');
-    await InvoiceService().updatePdfUrl(invoice.id, pdfUrl);
-    // Mettre à jour le numéro dans les données du wizard
     if (mounted) setState(() => widget.data.numero = invoice.numero);
+    // 2. Uploader le PDF — non-bloquant : la facture est sauvée même si le storage échoue
+    try {
+      final pdfUrl = await StorageService.uploadPdf(bytes, '${invoice.numero}.pdf');
+      await InvoiceService().updatePdfUrl(invoice.id, pdfUrl);
+    } catch (_) {
+      // L'upload peut être retenté depuis l'écran de détail de la facture
+    }
   }
 
   Future<void> _preview() async {

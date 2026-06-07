@@ -44,7 +44,13 @@ class MarketService {
         .single();
     final clientCode = (clientData['nom'] as String)
         .toUpperCase()
-        .replaceAll(' ', '');
+        .replaceAll(RegExp(r'[ÀÁÂÃÄÅ]'), 'A')
+        .replaceAll(RegExp(r'[ÈÉÊË]'), 'E')
+        .replaceAll(RegExp(r'[ÌÍÎÏ]'), 'I')
+        .replaceAll(RegExp(r'[ÒÓÔÕÖ]'), 'O')
+        .replaceAll(RegExp(r'[ÙÚÛÜ]'), 'U')
+        .replaceAll('Ç', 'C')
+        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
 
     // Séquence propre à ce client (combien de marchés il a déjà)
     final seqData = await _supabase
