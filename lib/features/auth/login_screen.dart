@@ -88,7 +88,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     setState(() { _loading = true; _error = null; });
     try {
-      await ref.read(authServiceProvider).sendPasswordResetOtp(email);
+      await ref.read(authServiceProvider).sendLoginOtp(email);
       if (mounted) {
         setState(() {
           _forgotEmail = email;
@@ -104,29 +104,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  // ── Mot de passe oublié — étape 2 : vérifier + nouveau mot de passe ───────
+  // ── Mot de passe oublié — étape 2 : vérifier le code OTP et connecter ────
 
-  Future<void> _resetPassword() async {
-    final code    = _codeCtrl.text.trim();
-    final newPass = _newPassCtrl.text;
-    final confirm = _newConfirmCtrl.text;
-
+  Future<void> _verifyOtpAndLogin() async {
+    final code = _codeCtrl.text.trim();
     if (code.length < 6) {
-      setState(() => _error = 'Entrez le code reçu par email');
-      return;
-    }
-    if (newPass.length < 6) {
-      setState(() => _error = 'Nouveau mot de passe : 6 caractères minimum');
-      return;
-    }
-    if (newPass != confirm) {
-      setState(() => _error = 'Les mots de passe ne correspondent pas');
+      setState(() => _error = 'Entrez le code à 6 chiffres reçu par email');
       return;
     }
     setState(() { _loading = true; _error = null; });
     try {
-      final auth = ref.read(authServiceProvider);
-      final ok = await auth.verifyPasswordResetOtp(
+      final ok = await ref.read(authServiceProvider).verifyLoginOtp(
           email: _forgotEmail, token: code);
       if (!ok) {
         if (mounted) setState(() {
@@ -135,21 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         });
         return;
       }
-      await auth.updatePassword(newPass);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mot de passe mis à jour avec succès !'),
-            backgroundColor: AppColors.g600,
-          ),
-        );
-        _emailCtrl.text = _forgotEmail;
-        _passCtrl.clear();
-        _codeCtrl.clear();
-        _newPassCtrl.clear();
-        _newConfirmCtrl.clear();
-        setState(() { _mode = _Mode.login; _loading = false; });
-      }
+      if (mounted) context.go('/');
     } catch (e) {
       if (mounted) setState(() {
         _error = _friendlyError(e);
@@ -361,7 +335,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       children: [
         _BackRow(
             onBack: () => _setMode(_Mode.forgotStep1),
-            title: 'Nouveau mot de passe'),
+            title: 'Vérification email'),
         const SizedBox(height: 8),
 
         Container(
@@ -377,48 +351,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Code envoyé à $_forgotEmail',
-                style: const TextStyle(
-                    color: AppColors.g700, fontSize: 12),
+                'Code à 6 chiffres envoyé à $_forgotEmail',
+                style: const TextStyle(color: AppColors.g700, fontSize: 12),
               ),
             ),
           ]),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         TextFormField(
           controller: _codeCtrl,
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
-          maxLength: 8,
+          maxLength: 6,
           autofocus: true,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          onFieldSubmitted: (_) => _verifyOtpAndLogin(),
           style: const TextStyle(
-              fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 8),
+              fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 10),
           decoration: const InputDecoration(
-            labelText: 'Code reçu',
+            labelText: 'Code de connexion',
             counterText: '',
-            hintText: '- - - - - - - -',
+            hintText: '- - - - - -',
             hintStyle: TextStyle(
-                letterSpacing: 8, fontSize: 20, color: AppColors.g300),
+                letterSpacing: 8, fontSize: 22, color: AppColors.g300),
           ),
         ),
-        const SizedBox(height: 12),
-        _PasswordField(ctrl: _newPassCtrl, label: 'Nouveau mot de passe'),
-        const SizedBox(height: 12),
-        _PasswordField(
-            ctrl: _newConfirmCtrl,
-            label: 'Confirmer le mot de passe',
-            onSubmit: _resetPassword),
 
         _ErrorBox(_error),
         const SizedBox(height: 20),
 
         _SubmitButton(
           loading: _loading,
-          label: 'Changer le mot de passe',
-          icon: Icons.lock_reset_outlined,
-          onPressed: _resetPassword,
+          label: 'Se connecter',
+          icon: Icons.login,
+          onPressed: _verifyOtpAndLogin,
         ),
         const SizedBox(height: 8),
         Center(

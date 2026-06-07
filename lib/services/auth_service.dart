@@ -35,25 +35,28 @@ class AuthService {
     return _fetchOrCreateProfile(res.user!);
   }
 
-  /// Envoie un code OTP pour réinitialiser le mot de passe
-  Future<void> sendPasswordResetOtp(String email) async {
-    await _client.auth.resetPasswordForEmail(email);
+  /// Envoie un code OTP à 6 chiffres par email (connexion sans mot de passe)
+  Future<void> sendLoginOtp(String email) async {
+    await _client.auth.signInWithOtp(
+      email: email,
+      shouldCreateUser: false,
+    );
   }
 
-  /// Vérifie le code OTP de récupération (connecte l'utilisateur)
-  Future<bool> verifyPasswordResetOtp({
+  /// Vérifie le code OTP et connecte l'utilisateur directement
+  Future<bool> verifyLoginOtp({
     required String email,
     required String token,
   }) async {
     final res = await _client.auth.verifyOTP(
       email: email,
       token: token,
-      type: OtpType.recovery,
+      type: OtpType.email,
     );
     return res.user != null;
   }
 
-  /// Met à jour le mot de passe de l'utilisateur connecté
+  /// Met à jour le mot de passe de l'utilisateur connecté (depuis les réglages)
   Future<void> updatePassword(String newPassword) async {
     await _client.auth.updateUser(
       UserAttributes(password: newPassword),
