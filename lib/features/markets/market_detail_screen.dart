@@ -3,9 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../models/employe.dart';
 import '../../models/expense.dart';
 import '../../models/invoice.dart';
 import '../../models/market.dart';
+import '../../services/employe_service.dart';
 import '../../services/expense_service.dart';
 import '../../services/invoice_service.dart';
 import '../../services/market_service.dart';
@@ -22,6 +24,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
   Market? _market;
   List<Invoice> _invoices = [];
   List<Expense> _expenses = [];
+  List<Affectation> _affectations = [];
   bool _loading = true;
 
   @override
@@ -36,17 +39,18 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
       MarketService().getById(widget.marketId),
       InvoiceService().getAll(),
       ExpenseService().getByMarket(widget.marketId),
+      EmployeService().getByMarket(widget.marketId),
     ]);
-    final market = results[0] as Market?;
+    final market      = results[0] as Market?;
     final allInvoices = results[1] as List<Invoice>;
-    final expenses = results[2] as List<Expense>;
+    final expenses    = results[2] as List<Expense>;
+    final affectations = results[3] as List<Affectation>;
     if (mounted) {
       setState(() {
         _market = market;
-        _invoices = allInvoices
-            .where((inv) => inv.marketId == widget.marketId)
-            .toList();
+        _invoices = allInvoices.where((inv) => inv.marketId == widget.marketId).toList();
         _expenses = expenses;
+        _affectations = affectations;
         _loading = false;
       });
     }
@@ -59,10 +63,11 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
     if (mounted) setState(() { _market = updated; _loading = false; });
   }
 
-  double get _totalFacture =>
-      _invoices.fold(0.0, (s, inv) => s + inv.totalTtc);
-  double get _totalDepenses =>
-      _expenses.fold(0.0, (s, e) => s + e.montant);
+  double get _totalFacture  => _invoices.fold(0.0, (s, inv) => s + inv.totalTtc);
+  double get _totalDepenses => _expenses.fold(0.0, (s, e) => s + e.montant);
+  double get _masseSalariale => _affectations
+      .where((a) => a.enCours)
+      .fold(0.0, (s, a) => s + (a.salaireMensuel ?? 0));
   double get _benefice => _totalFacture - _totalDepenses;
 
   @override
@@ -109,6 +114,12 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                         totalFacture: _totalFacture,
                         totalDepenses: _totalDepenses,
                         benefice: _benefice,
+                      ),
+                      const SizedBox(height: 12),
+                      _PersonnelSection(
+                        affectations: _affectations,
+                        masseSalariale: _masseSalariale,
+                        onManage: () => context.push('/employes'),
                       ),
                       const SizedBox(height: 12),
                       _InvoicesSection(
@@ -438,6 +449,80 @@ class _ExpensesSection extends StatelessWidget {
             ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+// ── Personnel ─────────────────────────────────────────────────────────────────
+
+class _PersonnelSection extends StatelessWidget {
+  final List<Affectation> affectations;
+  final double masseSalariale;
+  final VoidCallback onManage;
+  const _PersonnelSection({required this.affectations, required this.masseSalariale, required this.onManage});
+
+  @override
+  Widget build(BuildContext context) {
+    final enCours = affectations.where((a) => a.enCours).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Row(children: [
+            Expanded(
+              child: Text('Personnel (${enCours.length} actif${enCours.length > 1 ? 's' : ''})',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            ),
+            if (masseSalariale > 0)
+              Text(Formatters.fcfa(masseSalariale) + '/mois',
+                  style: const TextStyle(fontSize: 11, color: AppColors.red, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+        if (enCours.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                const Icon(Icons.people_outline, color: AppColors.s300),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Aucun employé affecté',
+                    style: TextStyle(color: AppColors.s400))),
+                TextButton(onPressed: onManage, child: const Text('Gérer', style: TextStyle(fontSize: 12))),
+              ]),
+            ),
+          )
+        else
+          Card(
+            child: Column(
+              children: [
+                ...enCours.map((a) => ListTile(
+                  dense: true,
+                  leading: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.g100,
+                    child: Text(
+                      a.employeNom?.isNotEmpty == true ? a.employeNom![0].toUpperCase() : '?',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.g700),
+                    ),
+                  ),
+                  title: Text(a.employeNom ?? 'Employé',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  trailing: Text(
+                    a.salaireMensuel != null ? Formatters.fcfa(a.salaireMensuel!) : '',
+                    style: const TextStyle(fontSize: 12, color: AppColors.s500),
+                  ),
+                )),
+                ListTile(
+                  dense: true,
+                  onTap: onManage,
+                  title: const Text('Gérer le personnel →',
+                      style: TextStyle(fontSize: 12, color: AppColors.g600)),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

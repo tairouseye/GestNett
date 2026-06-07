@@ -14,6 +14,9 @@ import '../../features/markets/market_form_screen.dart';
 import '../../features/invoices/invoices_list_screen.dart';
 import '../../features/invoices/invoice_wizard_screen.dart';
 import '../../features/invoices/invoice_detail_screen.dart';
+import '../../features/employes/employes_list_screen.dart';
+import '../../features/employes/employe_form_screen.dart';
+import '../../features/employes/employe_detail_screen.dart';
 import '../../features/expenses/expenses_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -98,6 +101,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (_, state) => InvoiceDetailScreen(
                   invoiceId: state.pathParameters['id']!,
                 ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/employes',
+            builder: (_, __) => const EmployesListScreen(),
+            routes: [
+              GoRoute(
+                path: 'new',
+                builder: (_, __) => const EmployeFormScreen(),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (_, state) =>
+                    EmployeDetailScreen(employeId: state.pathParameters['id']!),
+              ),
+              GoRoute(
+                path: ':id/edit',
+                builder: (_, state) =>
+                    EmployeFormScreen(employeId: state.pathParameters['id']),
               ),
             ],
           ),
