@@ -235,7 +235,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             style: Theme.of(context).textTheme.headlineSmall,
             textAlign: TextAlign.center),
         const SizedBox(height: 4),
-        const Text('Bienvenue sur GestNett',
+        const Text('Bienvenue sur GesPro',
             style: TextStyle(color: AppColors.g500, fontSize: 13),
             textAlign: TextAlign.center),
         const SizedBox(height: 24),
@@ -622,13 +622,13 @@ class _LogoBlock extends StatelessWidget {
     RichText(
       text: const TextSpan(children: [
         TextSpan(
-          text: 'Gest',
+          text: 'Ges',
           style: TextStyle(
               color: AppColors.white, fontSize: 30,
               fontWeight: FontWeight.w800, letterSpacing: -0.5),
         ),
         TextSpan(
-          text: 'Nett',
+          text: 'Pro',
           style: TextStyle(
               color: AppColors.g400, fontSize: 30,
               fontWeight: FontWeight.w800, letterSpacing: -0.5),
@@ -636,7 +636,7 @@ class _LogoBlock extends StatelessWidget {
       ]),
     ),
     const SizedBox(height: 4),
-    const Text('Gestion PME · Dakar',
+    const Text('Gestion Professionnelle · Dakar',
         style: TextStyle(color: AppColors.g300, fontSize: 12)),
   ]);
 }
@@ -751,7 +751,7 @@ class _VersionTextState extends State<_VersionText> {
 
   @override
   Widget build(BuildContext context) => Text(
-    'GestNett${_version.isNotEmpty ? ' v$_version' : ''}',
+    'GesPro${_version.isNotEmpty ? ' v$_version' : ''}',
     style: const TextStyle(color: AppColors.g300, fontSize: 11),
   );
 }

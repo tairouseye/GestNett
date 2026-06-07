@@ -23,10 +23,10 @@ class DashboardScreen extends ConsumerWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('CleanGest', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const Text('GesPro', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             profile.when(
               data: (p) => Text(
-                p != null ? 'Bonjour, ${p.nom}' : 'D2SERVICES',
+                p != null ? 'Bonjour, ${p.nom}' : 'GesPro',
                 style: const TextStyle(fontSize: 11, color: AppColors.g300),
               ),
               loading: () => const SizedBox.shrink(),

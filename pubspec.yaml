@@ -1,7 +1,7 @@
-name: gestnett
-description: GestNett — Gestion PME multi-entreprises
+name: gespro
+description: GesPro — Gestion Professionnelle PME
 publish_to: 'none'
-version: 2.4.0+31
+version: 3.0.0+32
 
 environment:
   sdk: ^3.11.5

@@ -19,18 +19,18 @@ Future<void> main() async {
     anonKey: SupabaseConfig.supabaseAnonKey,
   );
 
-  runApp(const ProviderScope(child: CleanGestApp()));
+  runApp(const ProviderScope(child: GesProApp()));
 }
 
-class CleanGestApp extends ConsumerWidget {
-  const CleanGestApp({super.key});
+class GesProApp extends ConsumerWidget {
+  const GesProApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'CleanGest Sénégal',
+      title: 'GesPro',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,

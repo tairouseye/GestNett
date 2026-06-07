@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Fond carré arrondi vert foncé -->
+  <rect width="200" height="200" rx="40" ry="40" fill="#145221"/>
+
+  <!-- Document blanc -->
+  <rect x="70" y="38" width="60" height="80" rx="7" ry="7" fill="white"/>
+
+  <!-- Lignes du document -->
+  <rect x="80" y="54" width="40" height="5" rx="2.5" fill="#145221" opacity="0.45"/>
+  <rect x="80" y="67" width="40" height="5" rx="2.5" fill="#145221" opacity="0.45"/>
+  <rect x="80" y="80" width="28" height="5" rx="2.5" fill="#145221" opacity="0.35"/>
+  <rect x="80" y="93" width="34" height="5" rx="2.5" fill="#145221" opacity="0.25"/>
+
+  <!-- Cercle coche (succès) -->
+  <circle cx="138" cy="108" r="20" fill="#4ade80"/>
+  <polyline points="128,108 135,116 150,100"
+    fill="none" stroke="#145221" stroke-width="4"
+    stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Nom GestNett en deux couleurs -->
+  <text font-family="Arial Black, Arial, sans-serif" font-size="27" font-weight="900" text-anchor="middle">
+    <tspan x="100" y="164" fill="white">Gest</tspan><tspan fill="#4ade80">Nett</tspan>
+  </text>
+</svg>

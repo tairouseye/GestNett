@@ -2,8 +2,8 @@ class AppStrings {
   AppStrings._();
 
   // App
-  static const String appName    = 'CleanGest Sénégal';
-  static const String companyName = 'D2SERVICES';
+  static const String appName    = 'GesPro';
+  static const String companyName = 'GesPro';
 
   // Auth
   static const String loginTitle    = 'Connexion';

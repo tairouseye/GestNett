@@ -35,7 +35,7 @@ class _AppShellState extends State<AppShell> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Se déconnecter ?'),
-        content: const Text('Vous allez être déconnecté de GestNett.'),
+        content: const Text('Vous allez être déconnecté de GesPro.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
