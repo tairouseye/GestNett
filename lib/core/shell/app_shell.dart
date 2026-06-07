@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../utils/inactivity_service.dart';
@@ -17,9 +17,27 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    InactivityService.instance.start(() {
-      if (mounted) context.go('/login');
-    });
+    InactivityService.instance.start(
+      () { if (mounted) context.go('/login'); },
+      onWarning: _showSessionWarning,
+    );
+  }
+
+  void _showSessionWarning() {
+    if (!mounted) return;
+    showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _SessionWarningDialog(
+        onExtend:  () { Navigator.pop(ctx); InactivityService.instance.extendSession(); },
+        onLogout:  () { Navigator.pop(ctx); _forceLogout(); },
+      ),
+    );
+  }
+
+  Future<void> _forceLogout() async {
+    await InactivityService.instance.forceLogout();
+    if (mounted) context.go('/login');
   }
 
   @override
@@ -50,11 +68,7 @@ class _AppShellState extends State<AppShell> {
         ],
       ),
     );
-    if (confirmed == true && mounted) {
-      InactivityService.instance.stop();
-      await Supabase.instance.client.auth.signOut();
-      if (mounted) context.go('/login');
-    }
+    if (confirmed == true && mounted) await _forceLogout();
   }
 
   static const _tabs = [
@@ -197,4 +211,86 @@ class _TabItem {
     required this.label,
     required this.path,
   });
+}
+
+class _SessionWarningDialog extends StatefulWidget {
+  final VoidCallback onExtend;
+  final VoidCallback onLogout;
+  const _SessionWarningDialog({required this.onExtend, required this.onLogout});
+
+  @override
+  State<_SessionWarningDialog> createState() => _SessionWarningDialogState();
+}
+
+class _SessionWarningDialogState extends State<_SessionWarningDialog> {
+  late int _seconds;
+  late final _timer = _startTimer();
+
+  @override
+  void initState() {
+    super.initState();
+    _seconds = 120; // 2 minutes
+  }
+
+  Timer _startTimer() => Timer.periodic(const Duration(seconds: 1), (t) {
+    if (!mounted) { t.cancel(); return; }
+    setState(() => _seconds--);
+    if (_seconds <= 0) {
+      t.cancel();
+      widget.onLogout();
+    }
+  });
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  String get _countdown {
+    final m = _seconds ~/ 60;
+    final s = _seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    icon: const Icon(Icons.access_time_outlined,
+        color: AppColors.g600, size: 40),
+    title: const Text('Session inactive',
+        textAlign: TextAlign.center),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(
+          'Vous êtes inactif depuis 28 minutes.\nDéconnexion automatique dans :',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          _countdown,
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            color: _seconds <= 30 ? AppColors.red : AppColors.g600,
+          ),
+        ),
+      ],
+    ),
+    actionsAlignment: MainAxisAlignment.center,
+    actions: [
+      OutlinedButton.icon(
+        icon: const Icon(Icons.logout, size: 18),
+        label: const Text('Se déconnecter'),
+        style: OutlinedButton.styleFrom(foregroundColor: AppColors.red),
+        onPressed: widget.onLogout,
+      ),
+      const SizedBox(width: 8),
+      ElevatedButton.icon(
+        icon: const Icon(Icons.refresh, size: 18),
+        label: const Text('Continuer'),
+        onPressed: widget.onExtend,
+      ),
+    ],
+  );
 }
