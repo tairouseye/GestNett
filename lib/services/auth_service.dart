@@ -37,7 +37,10 @@ class AuthService {
 
   /// Envoie un lien de connexion par email (cliquer = connecté directement)
   Future<void> sendLoginOtp(String email) async {
-    await _client.auth.resetPasswordForEmail(email);
+    await _client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'https://tairouseye.github.io/GestNett/',
+    );
   }
 
   /// Met à jour le mot de passe de l'utilisateur connecté (depuis les réglages)
