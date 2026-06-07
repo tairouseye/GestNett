@@ -29,6 +29,7 @@ class MarketService {
         .from('markets')
         .select('*, clients(nom)')
         .eq('id', id)
+        .eq('created_by', _uid)
         .maybeSingle();
     if (data == null) return null;
     return Market.fromMap(data);

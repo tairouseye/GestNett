@@ -317,6 +317,7 @@ class _StepClientState extends State<_StepClient> {
   late final TextEditingController _dateCtrl;
   List<dynamic> _clients = [];
   List<dynamic> _markets = [];
+  String? _errorClients;
   String get _uid => Supabase.instance.client.auth.currentUser!.id;
 
   @override
@@ -336,7 +337,9 @@ class _StepClientState extends State<_StepClient> {
           .eq('created_by', _uid)
           .order('nom');
       if (mounted) setState(() => _clients = clients as List);
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) setState(() => _errorClients = 'Erreur chargement clients');
+    }
   }
 
   Future<void> _loadMarkets(String clientId) async {
@@ -350,7 +353,6 @@ class _StepClientState extends State<_StepClient> {
       if (mounted) {
         setState(() {
           _markets = markets as List;
-          // Réinitialiser le marché si plus disponible
           if (widget.data.marketId != null &&
               !_markets.any((m) => m['id'] == widget.data.marketId)) {
             widget.data.marketId = null;
@@ -358,7 +360,9 @@ class _StepClientState extends State<_StepClient> {
           }
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) setState(() => _errorClients = 'Erreur chargement marchés');
+    }
   }
 
   void _selectClient(Map client) {
@@ -1286,8 +1290,8 @@ class _StepFinishState extends State<_StepFinish> {
         '📅 Date : ${DateFormat('dd MMMM yyyy', 'fr_FR').format(d.date)}\n'
         '👤 Client : ${d.clientNom}\n'
         '💰 Total TTC : ${Formatters.fcfa(d.totalTTC)}\n\n'
-        'Cordialement,\nD2SERVICES – La Responsable\n'
-        '📞 (+221) 77 562 03 50';
+        'Cordialement,\n${_settings?.companyName ?? 'GesPro'}'
+        '${_settings?.telephone != null ? '\n📞 ${_settings!.telephone}' : ''}';
 
     if (kIsWeb) {
       // Étape 1 : télécharger le PDF sur l'appareil

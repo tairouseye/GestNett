@@ -14,7 +14,7 @@ class ClientService {
   }
 
   Future<Client?> getById(String id) async {
-    final data = await _db.select().eq('id', id).maybeSingle();
+    final data = await _db.select().eq('id', id).eq('created_by', _uid).maybeSingle();
     if (data == null) return null;
     return Client.fromMap(data);
   }

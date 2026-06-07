@@ -145,8 +145,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
         _emailCtrl.text = _forgotEmail;
         _passCtrl.clear();
-        _newPassCtrl.clear();
-        _newConfirmCtrl.clear();
         _codeCtrl.clear();
         _newPassCtrl.clear();
         _newConfirmCtrl.clear();

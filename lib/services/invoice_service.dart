@@ -20,6 +20,7 @@ class InvoiceService {
         .from('invoices')
         .select('*, clients(nom), markets(numero)')
         .eq('client_id', clientId)
+        .eq('created_by', _uid)
         .order('date', ascending: false);
     return (data as List).map((m) => Invoice.fromMap(m)).toList();
   }

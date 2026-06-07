@@ -387,9 +387,14 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
     setState(() => _loading = true);
     try {
       final markets = await MarketService().getAll();
-      setState(() { _markets = markets; _loading = false; });
-    } catch (_) {
-      setState(() => _loading = false);
+      if (mounted) setState(() { _markets = markets; _loading = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur chargement marchés : $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

@@ -21,7 +21,6 @@ class DashboardStats {
   double get beneficeEstime => totalEncaisse - totalDepenses;
 }
 
-// Données pour le graphique des encaissements mensuels
 class MonthlyData {
   final String mois;
   final double montant;
@@ -30,78 +29,79 @@ class MonthlyData {
 
 final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   final supabase = Supabase.instance.client;
+  final uid = supabase.auth.currentUser!.id;
 
-  // Marchés actifs
-  final marchesRes = await supabase
-      .from('markets')
-      .select('id')
-      .eq('statut', 'en_cours')
-      .count();
-  final marchesActifs = marchesRes.count;
+  final results = await Future.wait([
+    // Marchés actifs
+    supabase.from('markets').select('id').eq('created_by', uid).eq('statut', 'en_cours').count(),
+    // Factures (sauf annulées)
+    supabase.from('invoices').select('total_ttc, statut').eq('created_by', uid).neq('statut', 'annulee'),
+    // Paiements
+    supabase.from('payments').select('montant').eq('created_by', uid),
+    // Dépenses
+    supabase.from('expenses').select('montant').eq('created_by', uid),
+    // Factures en retard (émises > 30 jours)
+    supabase.from('invoices')
+        .select('id')
+        .eq('created_by', uid)
+        .eq('statut', 'emise')
+        .lt('date', DateTime.now().subtract(const Duration(days: 30)).toIso8601String().substring(0, 10))
+        .count(),
+  ]);
 
-  // Total facturé (toutes les factures sauf annulées)
-  final invoicesRes = await supabase
-      .from('invoices')
-      .select('total_ttc, statut')
-      .neq('statut', 'annulee');
-  final invoicesList = invoicesRes as List;
-  final totalFacture = invoicesList
-      .fold<double>(0, (s, r) => s + ((r['total_ttc'] as num?)?.toDouble() ?? 0));
-  final nombreFactures = invoicesList.length;
+  final marchesActifs  = (results[0] as PostgrestCountResponse).count;
+  final invoicesList   = results[1] as List;
+  final paymentsList   = results[2] as List;
+  final expensesList   = results[3] as List;
+  final clientsEnRetard = (results[4] as PostgrestCountResponse).count;
 
-  // Total encaissé (sum payments)
-  final paymentsRes = await supabase.from('payments').select('montant');
-  final totalEncaisse = (paymentsRes as List)
-      .fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));
-
-  // Total dépenses
-  final expensesRes = await supabase.from('expenses').select('montant');
-  final totalDepenses = (expensesRes as List)
-      .fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));
-
-  // Clients en retard (factures émises > 30 jours sans paiement complet)
-  final retardDate = DateTime.now().subtract(const Duration(days: 30));
-  final retardRes = await supabase
-      .from('invoices')
-      .select('id')
-      .eq('statut', 'emise')
-      .lt('date', retardDate.toIso8601String().substring(0, 10))
-      .count();
-  final clientsEnRetard = retardRes.count;
+  final totalFacture  = invoicesList.fold<double>(0, (s, r) => s + ((r['total_ttc'] as num?)?.toDouble() ?? 0));
+  final totalEncaisse = paymentsList.fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));
+  final totalDepenses = expensesList.fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));
 
   return DashboardStats(
-    marchesActifs: marchesActifs,
-    nombreFactures: nombreFactures,
-    totalFacture: totalFacture,
-    totalEncaisse: totalEncaisse,
-    totalDepenses: totalDepenses,
-    clientsEnRetard: clientsEnRetard,
+    marchesActifs:    marchesActifs,
+    nombreFactures:   invoicesList.length,
+    totalFacture:     totalFacture,
+    totalEncaisse:    totalEncaisse,
+    totalDepenses:    totalDepenses,
+    clientsEnRetard:  clientsEnRetard,
   );
 });
 
-// Encaissements des 6 derniers mois pour le graphique
+// Encaissements des 6 derniers mois — une seule requête au lieu de 6
 final monthlyEncaissementsProvider = FutureProvider<List<MonthlyData>>((ref) async {
   final supabase = Supabase.instance.client;
-  final months = <MonthlyData>[];
+  final uid = supabase.auth.currentUser!.id;
   final moisLabels = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
-  final now = DateTime.now();
+  final now  = DateTime.now();
+  final from = DateTime(now.year, now.month - 5, 1);
+
+  final res = await supabase
+      .from('payments')
+      .select('montant, date')
+      .eq('created_by', uid)
+      .gte('date', from.toIso8601String().substring(0, 10))
+      .lte('date', now.toIso8601String().substring(0, 10));
+
+  // Agréger côté client par mois
+  final Map<String, double> totaux = {};
   for (int i = 5; i >= 0; i--) {
-    final target = DateTime(now.year, now.month - i, 1);
-    final from = DateTime(target.year, target.month, 1);
-    final to = DateTime(target.year, target.month + 1, 0);
-
-    final res = await supabase
-        .from('payments')
-        .select('montant')
-        .gte('date', from.toIso8601String().substring(0, 10))
-        .lte('date', to.toIso8601String().substring(0, 10));
-
-    final total = (res as List)
-        .fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));
-
-    months.add(MonthlyData(moisLabels[target.month - 1], total));
+    final t = DateTime(now.year, now.month - i, 1);
+    final key = '${t.year}-${t.month.toString().padLeft(2, '0')}';
+    totaux[key] = 0;
+  }
+  for (final row in (res as List)) {
+    final date = row['date'] as String;
+    final key  = date.substring(0, 7); // YYYY-MM
+    if (totaux.containsKey(key)) {
+      totaux[key] = totaux[key]! + ((row['montant'] as num?)?.toDouble() ?? 0);
+    }
   }
 
-  return months;
+  return totaux.entries.map((e) {
+    final month = int.parse(e.key.split('-')[1]);
+    return MonthlyData(moisLabels[month - 1], e.value);
+  }).toList();
 });

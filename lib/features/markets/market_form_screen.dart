@@ -36,8 +36,13 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
     try {
       final clients = await ClientService().getAll();
       if (mounted) setState(() { _clients = clients; _loadingClients = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loadingClients = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingClients = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur chargement clients : $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

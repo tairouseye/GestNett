@@ -125,6 +125,7 @@ class EmployeService {
         .eq('market_id', marketId)
         .eq('created_by', _uid)
         .isFilter('date_fin', null);
+
     return (data as List).fold<double>(0, (sum, row) {
       final emp = row['employes'] as Map<String, dynamic>?;
       return sum + ((emp?['salaire_mensuel'] as num?)?.toDouble() ?? 0);
