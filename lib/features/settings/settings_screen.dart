@@ -18,12 +18,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _saving = false;
   CompanySettings? _settings;
 
-  final _nameCtrl      = TextEditingController();
-  final _sloganCtrl    = TextEditingController();
-  final _descCtrl      = TextEditingController();
-  final _adresseCtrl   = TextEditingController();
-  final _telCtrl       = TextEditingController();
-  final _emailCtrl     = TextEditingController();
+  // En-tête
+  final _nameCtrl    = TextEditingController();
+  final _sloganCtrl  = TextEditingController();
+  final _descCtrl    = TextEditingController();
+  final _adresseCtrl = TextEditingController();
+  final _tel1Ctrl    = TextEditingController();
+  final _tel2Ctrl    = TextEditingController();
+  final _emailCtrl   = TextEditingController();
+
+  // Bas de page légal
+  final _nineaCtrl   = TextEditingController();
+  final _rccmCtrl    = TextEditingController();
+  final _compteCtrl  = TextEditingController();
 
   String? _logoUrl;
   String? _signatureUrl;
@@ -40,8 +47,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _sloganCtrl.dispose();
     _descCtrl.dispose();
     _adresseCtrl.dispose();
-    _telCtrl.dispose();
+    _tel1Ctrl.dispose();
+    _tel2Ctrl.dispose();
     _emailCtrl.dispose();
+    _nineaCtrl.dispose();
+    _rccmCtrl.dispose();
+    _compteCtrl.dispose();
     super.dispose();
   }
 
@@ -55,8 +66,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _sloganCtrl.text  = s.slogan ?? '';
           _descCtrl.text    = s.description ?? '';
           _adresseCtrl.text = s.adresse ?? '';
-          _telCtrl.text     = s.telephone ?? '';
+          _tel1Ctrl.text    = s.telephone ?? '';
+          _tel2Ctrl.text    = s.telephone2 ?? '';
           _emailCtrl.text   = s.email ?? '';
+          _nineaCtrl.text   = s.ninea ?? '';
+          _rccmCtrl.text    = s.rccm ?? '';
+          _compteCtrl.text  = s.compteBancaire ?? '';
           _logoUrl          = s.logoUrl;
           _signatureUrl     = s.signatureUrl;
         }
@@ -66,20 +81,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
+    final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
     if (result == null || result.files.single.bytes == null) return;
     final bytes = result.files.single.bytes!;
-    final ext = result.files.single.extension ?? 'png';
+    final ext   = result.files.single.extension ?? 'png';
     setState(() => _saving = true);
     try {
       final url = await CompanySettingsService.uploadLogo(bytes, ext);
-      setState(() {
-        _logoUrl = url;
-        _saving  = false;
-      });
+      setState(() { _logoUrl = url; _saving = false; });
     } catch (e) {
       setState(() => _saving = false);
       if (mounted) _showError('Erreur upload logo : $e');
@@ -87,20 +96,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _pickSignature() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
+    final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
     if (result == null || result.files.single.bytes == null) return;
     final bytes = result.files.single.bytes!;
-    final ext = result.files.single.extension ?? 'png';
+    final ext   = result.files.single.extension ?? 'png';
     setState(() => _saving = true);
     try {
       final url = await CompanySettingsService.uploadSignature(bytes, ext);
-      setState(() {
-        _signatureUrl = url;
-        _saving       = false;
-      });
+      setState(() { _signatureUrl = url; _saving = false; });
     } catch (e) {
       setState(() => _saving = false);
       if (mounted) _showError('Erreur upload signature : $e');
@@ -113,28 +116,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final uid = Supabase.instance.client.auth.currentUser!.id;
       final updated = CompanySettings(
-        id:           _settings?.id,
-        userId:       uid,
-        companyName:  _nameCtrl.text.trim(),
-        slogan:       _sloganCtrl.text.trim().isEmpty ? null : _sloganCtrl.text.trim(),
-        description:  _descCtrl.text.trim().isEmpty   ? null : _descCtrl.text.trim(),
-        adresse:      _adresseCtrl.text.trim().isEmpty ? null : _adresseCtrl.text.trim(),
-        telephone:    _telCtrl.text.trim().isEmpty    ? null : _telCtrl.text.trim(),
-        email:        _emailCtrl.text.trim().isEmpty  ? null : _emailCtrl.text.trim(),
-        logoUrl:      _logoUrl,
-        signatureUrl: _signatureUrl,
+        id:             _settings?.id,
+        userId:         uid,
+        companyName:    _nameCtrl.text.trim(),
+        slogan:         _v(_sloganCtrl),
+        description:    _v(_descCtrl),
+        adresse:        _v(_adresseCtrl),
+        telephone:      _v(_tel1Ctrl),
+        telephone2:     _v(_tel2Ctrl),
+        email:          _v(_emailCtrl),
+        ninea:          _v(_nineaCtrl),
+        rccm:           _v(_rccmCtrl),
+        compteBancaire: _v(_compteCtrl),
+        logoUrl:        _logoUrl,
+        signatureUrl:   _signatureUrl,
       );
       final saved = await CompanySettingsService.save(updated);
-      setState(() {
-        _settings = saved;
-        _saving   = false;
-      });
+      setState(() { _settings = saved; _saving = false; });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Paramètres sauvegardés'),
-            backgroundColor: AppColors.g600,
-          ),
+          const SnackBar(content: Text('Paramètres sauvegardés'), backgroundColor: AppColors.g600),
         );
       }
     } catch (e) {
@@ -142,6 +143,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) _showError('Erreur sauvegarde : $e');
     }
   }
+
+  String? _v(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
 
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -166,81 +169,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ─── Logo + Signature ───────────────────────────────
-                    _SectionHeader('Identité visuelle'),
+                    // ── Identité visuelle ──────────────────────────────────
+                    _SectionHeader('Identité visuelle', Icons.image_outlined),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ImageCard(
-                            label: 'Logo',
-                            url: _logoUrl,
-                            onTap: _saving ? null : _pickLogo,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _ImageCard(
-                            label: 'Signature / Cachet',
-                            url: _signatureUrl,
-                            onTap: _saving ? null : _pickSignature,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
+                    Row(children: [
+                      Expanded(child: _ImageCard(label: 'Logo', url: _logoUrl, onTap: _saving ? null : _pickLogo)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _ImageCard(label: 'Signature / Cachet', url: _signatureUrl, onTap: _saving ? null : _pickSignature)),
+                    ]),
+                    const SizedBox(height: 24),
 
-                    // ─── Informations entreprise ────────────────────────
-                    _SectionHeader('Informations entreprise'),
+                    // ── En-tête facture ────────────────────────────────────
+                    _SectionHeader('En-tête de facture', Icons.article_outlined),
+                    const SizedBox(height: 4),
+                    const Text('Ces informations apparaissent en haut de chaque facture.',
+                        style: TextStyle(fontSize: 12, color: AppColors.s400)),
                     const SizedBox(height: 12),
                     _field(
                       ctrl: _nameCtrl,
                       label: 'Nom de l\'entreprise *',
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Champ requis' : null,
+                      hint: 'Ex: D2SERVICES',
+                      bold: true,
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Champ requis' : null,
                     ),
                     const SizedBox(height: 12),
-                    _field(ctrl: _sloganCtrl, label: 'Slogan'),
+                    _field(ctrl: _sloganCtrl, label: 'Slogan', hint: 'Ex: Solutions professionnelles de nettoyage'),
                     const SizedBox(height: 12),
-                    _field(ctrl: _descCtrl, label: 'Description', maxLines: 2),
+                    _field(ctrl: _descCtrl, label: 'Services / Description', hint: 'Ex: Nettoyage industriel, BTP, placement de personnel...', maxLines: 2),
                     const SizedBox(height: 12),
-                    _field(ctrl: _adresseCtrl, label: 'Adresse'),
+                    _field(ctrl: _adresseCtrl, label: 'Adresse', hint: 'Ex: Ouakam Tagolou – Dakar, Sénégal', prefixIcon: Icons.location_on_outlined),
                     const SizedBox(height: 12),
-                    _field(
-                      ctrl: _telCtrl,
-                      label: 'Téléphone',
-                      keyboardType: TextInputType.phone,
-                    ),
+                    Row(children: [
+                      Expanded(child: _field(ctrl: _tel1Ctrl, label: 'Téléphone 1', hint: '(+221) 77 000 00 00', keyboardType: TextInputType.phone, prefixIcon: Icons.phone_outlined)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _field(ctrl: _tel2Ctrl, label: 'Téléphone 2', hint: 'Optionnel', keyboardType: TextInputType.phone, prefixIcon: Icons.phone_outlined)),
+                    ]),
                     const SizedBox(height: 12),
-                    _field(
-                      ctrl: _emailCtrl,
-                      label: 'Email',
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 28),
+                    _field(ctrl: _emailCtrl, label: 'Email', hint: 'contact@entreprise.sn', keyboardType: TextInputType.emailAddress, prefixIcon: Icons.email_outlined),
+                    const SizedBox(height: 24),
 
-                    // ─── Bouton sauvegarder ─────────────────────────────
+                    // ── Bas de page facture ────────────────────────────────
+                    _SectionHeader('Bas de page de facture', Icons.receipt_long_outlined),
+                    const SizedBox(height: 4),
+                    const Text('Informations légales affichées en bas de chaque facture.',
+                        style: TextStyle(fontSize: 12, color: AppColors.s400)),
+                    const SizedBox(height: 12),
+                    _field(ctrl: _nineaCtrl, label: 'NINEA', hint: 'Ex: 123456789 2Z3', prefixIcon: Icons.tag_outlined),
+                    const SizedBox(height: 12),
+                    _field(ctrl: _rccmCtrl, label: 'RCCM', hint: 'Ex: SN DKR 2018 B 12345', prefixIcon: Icons.business_outlined),
+                    const SizedBox(height: 12),
+                    _field(ctrl: _compteCtrl, label: 'Numéro de compte bancaire', hint: 'Optionnel', prefixIcon: Icons.account_balance_outlined),
+                    const SizedBox(height: 32),
+
+                    // ── Bouton sauvegarder ─────────────────────────────────
                     SizedBox(
-                      height: 48,
+                      height: 50,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.g700,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                         onPressed: _saving ? null : _save,
                         icon: _saving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2),
-                              )
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : const Icon(Icons.save_outlined),
                         label: Text(_saving ? 'Sauvegarde...' : 'Sauvegarder'),
                       ),
                     ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -251,20 +248,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _field({
     required TextEditingController ctrl,
     required String label,
+    String? hint,
     String? Function(String?)? validator,
     TextInputType? keyboardType,
     int maxLines = 1,
+    IconData? prefixIcon,
+    bool bold = false,
   }) {
     return TextFormField(
       controller: ctrl,
       validator: validator,
       keyboardType: keyboardType,
       maxLines: maxLines,
+      style: bold ? const TextStyle(fontWeight: FontWeight.bold) : null,
       decoration: InputDecoration(
         labelText: label,
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 12, color: AppColors.s300),
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 18) : null,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
     );
   }
@@ -272,26 +275,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 class _SectionHeader extends StatelessWidget {
   final String text;
-  const _SectionHeader(this.text);
+  final IconData icon;
+  const _SectionHeader(this.text, this.icon);
 
   @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: AppColors.g700,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Row(children: [
+    Icon(icon, size: 16, color: AppColors.g700),
+    const SizedBox(width: 6),
+    Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.g700)),
+  ]);
 }
 
 class _ImageCard extends StatelessWidget {
   final String label;
   final String? url;
   final VoidCallback? onTap;
-
   const _ImageCard({required this.label, this.url, this.onTap});
 
   @override
@@ -312,30 +310,17 @@ class _ImageCard extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(6),
-                  child: Image.network(
-                    url!,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.broken_image, color: AppColors.s300),
-                  ),
+                  child: Image.network(url!, fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: AppColors.s300)),
                 ),
               )
             else
-              const Icon(Icons.add_photo_alternate_outlined,
-                  size: 36, color: AppColors.s300),
+              const Icon(Icons.add_photo_alternate_outlined, size: 36, color: AppColors.s300),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.s500,
-                  fontWeight: FontWeight.w500),
-            ),
+            Text(label, style: const TextStyle(fontSize: 11, color: AppColors.s500, fontWeight: FontWeight.w500)),
             const SizedBox(height: 2),
-            Text(
-              url != null ? 'Appuyer pour changer' : 'Appuyer pour ajouter',
-              style: const TextStyle(fontSize: 9, color: AppColors.s300),
-            ),
+            Text(url != null ? 'Appuyer pour changer' : 'Appuyer pour ajouter',
+                style: const TextStyle(fontSize: 9, color: AppColors.s300)),
           ],
         ),
       ),

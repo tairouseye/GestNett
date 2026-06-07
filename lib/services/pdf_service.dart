@@ -121,6 +121,10 @@ class PdfService {
 
             // ── 6. SIGNATURE ───────────────────────────────────────────────
             _buildSignature(cachetImage),
+            pw.SizedBox(height: 16),
+
+            // ── 7. PIED DE PAGE LÉGAL ───────────────────────────────────────
+            _buildFooter(settings),
           ],
         ),
       ),
@@ -134,16 +138,14 @@ class PdfService {
   // ─────────────────────────────────────────────────────────────────────────────
   static pw.Widget _buildHeader(
       pw.ImageProvider? logo, CompanySettings? settings) {
-    final name = settings?.companyName.isNotEmpty == true
-        ? settings!.companyName
-        : 'D2SERVICES';
-    final slogan = settings?.slogan ?? 'SOLUTIONS PROFESSIONNELLES DE NETTOYAGE, BTP ET SERVICES ASSOCIÉS';
-    final desc = settings?.description ??
-        'Entreprise de nettoyage professionnel, industriel, BTP, Placement de personnel,\n'
-            'Déco, Phytosanitaire & services connexes.';
+    final name    = settings?.companyName.isNotEmpty == true ? settings!.companyName : 'D2SERVICES';
+    final slogan  = settings?.slogan ?? 'SOLUTIONS PROFESSIONNELLES DE NETTOYAGE, BTP ET SERVICES ASSOCIÉS';
+    final desc    = settings?.description ?? 'Entreprise de nettoyage professionnel, industriel, BTP, Placement de personnel,\nDéco, Phytosanitaire & services connexes.';
     final adresse = settings?.adresse ?? 'Ouakam Tagolou – Dakar, Sénégal';
-    final tel = settings?.telephone ?? '(+221) 77 562 03 50';
-    final email = settings?.email ?? 'd2services2018net@gmail.com';
+    final tel     = settings?.telephone ?? '(+221) 77 562 03 50';
+    final tel2    = settings?.telephone2;
+    final email   = settings?.email ?? 'd2services2018net@gmail.com';
+    final telLine = tel2 != null && tel2.isNotEmpty ? 'Tel: $tel / $tel2' : 'Tel: $tel';
     final initials = name.length >= 2 ? name.substring(0, 2).toUpperCase() : name;
 
     return pw.Column(
@@ -201,14 +203,8 @@ class PdfService {
                     style: pw.TextStyle(fontSize: 7, color: _textGray),
                   ),
                   pw.SizedBox(height: 3),
-                  pw.Text(
-                    adresse,
-                    style: pw.TextStyle(fontSize: 7, color: _textGray),
-                  ),
-                  pw.Text(
-                    'Tel: $tel   Email: $email',
-                    style: pw.TextStyle(fontSize: 7, color: _textGray),
-                  ),
+                  pw.Text(adresse, style: pw.TextStyle(fontSize: 7, color: _textGray)),
+                  pw.Text('$telLine   Email: $email', style: pw.TextStyle(fontSize: 7, color: _textGray)),
                 ],
               ),
             ),
@@ -411,6 +407,38 @@ class PdfService {
         ),
       ]),
     );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PIED DE PAGE LÉGAL : NINEA | RCCM | Compte
+  // ─────────────────────────────────────────────────────────────────────────────
+  static pw.Widget _buildFooter(CompanySettings? settings) {
+    final parts = <String>[];
+    final ninea  = settings?.ninea;
+    final rccm   = settings?.rccm;
+    final compte = settings?.compteBancaire;
+
+    if (ninea  != null && ninea.isNotEmpty)  parts.add('NINEA : $ninea');
+    if (rccm   != null && rccm.isNotEmpty)   parts.add('RCCM : $rccm');
+    if (compte != null && compte.isNotEmpty) parts.add('Compte : $compte');
+
+    if (parts.isEmpty) return pw.SizedBox.shrink();
+
+    return pw.Column(children: [
+      pw.Divider(thickness: 0.6, color: const PdfColor.fromInt(0xFF888888)),
+      pw.SizedBox(height: 4),
+      pw.Center(
+        child: pw.Text(
+          parts.join('   |   '),
+          style: pw.TextStyle(
+            font: pw.Font.helvetica(),
+            fontSize: 7.5,
+            color: _textGray,
+          ),
+          textAlign: pw.TextAlign.center,
+        ),
+      ),
+    ]);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
