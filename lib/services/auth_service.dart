@@ -37,10 +37,7 @@ class AuthService {
 
   /// Envoie un code OTP pour réinitialiser le mot de passe
   Future<void> sendPasswordResetOtp(String email) async {
-    await _client.auth.signInWithOtp(
-      email: email,
-      shouldCreateUser: false,
-    );
+    await _client.auth.resetPasswordForEmail(email);
   }
 
   /// Vérifie le code OTP de récupération (connecte l'utilisateur)
@@ -51,7 +48,7 @@ class AuthService {
     final res = await _client.auth.verifyOTP(
       email: email,
       token: token,
-      type: OtpType.email,
+      type: OtpType.recovery,
     );
     return res.user != null;
   }
