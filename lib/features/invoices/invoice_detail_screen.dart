@@ -11,7 +11,6 @@ import '../../models/company_settings.dart';
 import '../../services/invoice_service.dart';
 import '../../services/payment_service.dart';
 import '../../services/pdf_service.dart';
-import '../../services/storage_service.dart';
 import '../../services/company_settings_service.dart';
 
 class InvoiceDetailScreen extends StatefulWidget {
@@ -233,20 +232,6 @@ class _PdfActionsCardState extends State<_PdfActionsCard> {
     return false;
   }
 
-  /// Obtient les bytes PDF : depuis Storage si pdfUrl existe, sinon génère à la volée.
-  Future<String?> _ensurePdfUrl() async {
-    if (invoice.pdfUrl != null) return invoice.pdfUrl;
-    // Générer le PDF et l'uploader
-    try {
-      final bytes = await PdfService.generateFromInvoice(invoice, settings: _settings);
-      final url = await StorageService.uploadPdf(bytes, '${invoice.numero}.pdf');
-      await InvoiceService().updatePdfUrl(invoice.id, url);
-      return url;
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<void> _withBusy(Future<void> Function() action) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -254,21 +239,12 @@ class _PdfActionsCardState extends State<_PdfActionsCard> {
   }
 
   Future<void> _openPdf(BuildContext context) => _withBusy(() async {
-    if (invoice.pdfUrl != null) {
-      await _launch(Uri.parse(invoice.pdfUrl!));
-      return;
-    }
-    // Générer + télécharger directement
     final bytes = await PdfService.generateFromInvoice(invoice, settings: _settings);
     await Printing.sharePdf(bytes: bytes, filename: '${invoice.numero}.pdf');
   });
 
   Future<void> _shareWhatsApp(BuildContext context) => _withBusy(() async {
-    final pdfUrl = await _ensurePdfUrl();
-    final msg = pdfUrl != null
-        ? '$_waMsg\n\n📎 Télécharger la facture PDF :\n$pdfUrl'
-        : _waMsg;
-    final waUri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}');
+    final waUri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(_waMsg)}');
     await _launch(waUri);
   });
 
