@@ -9,7 +9,7 @@ class InvoiceService {
   Future<List<Invoice>> getAll() async {
     final data = await _supabase
         .from('invoices')
-        .select('*, clients(nom)')
+        .select('*, clients(nom), markets(numero)')
         .eq('created_by', _uid)
         .order('created_at', ascending: false);
     return (data as List).map((m) => Invoice.fromMap(m)).toList();
@@ -18,7 +18,7 @@ class InvoiceService {
   Future<List<Invoice>> getByClient(String clientId) async {
     final data = await _supabase
         .from('invoices')
-        .select('*, clients(nom)')
+        .select('*, clients(nom), markets(numero)')
         .eq('client_id', clientId)
         .order('date', ascending: false);
     return (data as List).map((m) => Invoice.fromMap(m)).toList();
@@ -27,7 +27,7 @@ class InvoiceService {
   Future<Invoice?> getById(String id) async {
     final data = await _supabase
         .from('invoices')
-        .select('*, clients(nom)')
+        .select('*, clients(nom), markets(numero)')
         .eq('id', id)
         .maybeSingle();
     if (data == null) return null;
@@ -56,7 +56,7 @@ class InvoiceService {
     final data = await _supabase
         .from('invoices')
         .insert(insertData)
-        .select('*, clients(nom)')
+        .select('*, clients(nom), markets(numero)')
         .single();
     return Invoice.fromMap(data);
   }

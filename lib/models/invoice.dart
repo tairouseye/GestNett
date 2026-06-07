@@ -30,6 +30,7 @@ class Invoice {
   final String id;
   final String numero;
   final String? marketId;
+  final String? marketNumero;
   final String clientId;
   final String? clientNom;
   final DateTime date;
@@ -44,6 +45,7 @@ class Invoice {
     required this.id,
     required this.numero,
     this.marketId,
+    this.marketNumero,
     required this.clientId,
     this.clientNom,
     required this.date,
@@ -61,6 +63,9 @@ class Invoice {
     id: m['id'] as String,
     numero: m['numero'] as String,
     marketId: m['market_id'] as String?,
+    marketNumero: m['markets'] != null
+        ? (m['markets'] as Map<String, dynamic>)['numero'] as String?
+        : null,
     clientId: m['client_id'] as String,
     clientNom: m['clients'] != null
         ? (m['clients'] as Map<String, dynamic>)['nom'] as String?

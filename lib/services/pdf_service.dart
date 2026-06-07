@@ -34,6 +34,7 @@ class PdfService {
       clientAdresse: '',
       clientId: invoice.clientId,
       marketId: invoice.marketId,
+      marketNumero: invoice.marketNumero,
       prestations: [
         PrestationLine(
           designation: 'Prestation de nettoyage',
@@ -226,9 +227,11 @@ class PdfService {
         crossAxisAlignment: pw.CrossAxisAlignment.end,
         children: [
           _metaRow('Date', _formatDate(data.date)),
-          _metaRow('Doit', data.clientNom),
+          _metaRow('Client', data.clientNom),
           if (data.clientAdresse.trim().isNotEmpty)
             _metaRow('Adresse', data.clientAdresse),
+          if (data.marketNumero != null && data.marketNumero!.isNotEmpty)
+            _metaRow('Marché', data.marketNumero!),
         ],
       ),
     );
