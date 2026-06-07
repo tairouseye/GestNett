@@ -38,8 +38,8 @@ class CompanySettingsService {
 
   /// Upload le logo et retourne l'URL publique.
   static Future<String> uploadLogo(Uint8List bytes, String ext) async {
-    final path = '$_uid/logos/logo.$ext';
-    await _storage.from('pdfs').uploadBinary(
+    final path = '$_uid/logo.$ext';
+    await _storage.from('logos').uploadBinary(
       path,
       bytes,
       fileOptions: FileOptions(
@@ -47,13 +47,13 @@ class CompanySettingsService {
         upsert: true,
       ),
     );
-    return _storage.from('pdfs').getPublicUrl(path);
+    return _storage.from('logos').getPublicUrl(path);
   }
 
   /// Upload la signature et retourne l'URL publique.
   static Future<String> uploadSignature(Uint8List bytes, String ext) async {
-    final path = '$_uid/signatures/signature.$ext';
-    await _storage.from('pdfs').uploadBinary(
+    final path = '$_uid/signature.$ext';
+    await _storage.from('signatures').uploadBinary(
       path,
       bytes,
       fileOptions: FileOptions(
@@ -61,6 +61,6 @@ class CompanySettingsService {
         upsert: true,
       ),
     );
-    return _storage.from('pdfs').getPublicUrl(path);
+    return _storage.from('signatures').getPublicUrl(path);
   }
 }
