@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/auth_provider.dart';
@@ -23,7 +24,19 @@ class DashboardScreen extends ConsumerWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('GesPro', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Row(
+              children: [
+                const Text('GesPro', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(width: 6),
+                FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (_, snap) => snap.hasData
+                      ? Text('v${snap.data!.version}',
+                          style: const TextStyle(fontSize: 10, color: AppColors.g400, fontWeight: FontWeight.w500))
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
             profile.when(
               data: (p) => Text(
                 p != null ? 'Bonjour, ${p.nom}' : 'GesPro',
