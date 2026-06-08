@@ -15,6 +15,8 @@ class CompanySettings {
   final String? logoUrl;
   final String? signatureUrl;
   final String devise;
+  final String pays;
+  final String ville;
 
   const CompanySettings({
     this.id,
@@ -33,6 +35,8 @@ class CompanySettings {
     this.logoUrl,
     this.signatureUrl,
     this.devise = 'FCFA',
+    this.pays = 'Sénégal',
+    this.ville = 'Dakar',
   });
 
   factory CompanySettings.fromMap(Map<String, dynamic> m) => CompanySettings(
@@ -52,6 +56,8 @@ class CompanySettings {
         logoUrl:       m['logo_url'] as String?,
         signatureUrl:  m['signature_url'] as String?,
         devise:        m['devise'] as String? ?? 'FCFA',
+        pays:          m['pays'] as String? ?? 'Sénégal',
+        ville:         m['ville'] as String? ?? 'Dakar',
       );
 
   Map<String, dynamic> toMap() => {
@@ -70,6 +76,8 @@ class CompanySettings {
         'logo_url':       logoUrl,
         'signature_url':  signatureUrl,
         'devise':         devise,
+        'pays':           pays,
+        'ville':          ville,
       };
 
   CompanySettings copyWith({
@@ -87,6 +95,8 @@ class CompanySettings {
     String? logoUrl,
     String? signatureUrl,
     String? devise,
+    String? pays,
+    String? ville,
   }) =>
       CompanySettings(
         id:            id,
@@ -100,10 +110,12 @@ class CompanySettings {
         email:         email        ?? this.email,
         ninea:         ninea        ?? this.ninea,
         rccm:          rccm         ?? this.rccm,
-        iban:          iban      ?? this.iban,
-        nomBanque:     nomBanque ?? this.nomBanque,
+        iban:          iban         ?? this.iban,
+        nomBanque:     nomBanque    ?? this.nomBanque,
         logoUrl:       logoUrl      ?? this.logoUrl,
         signatureUrl:  signatureUrl ?? this.signatureUrl,
         devise:        devise       ?? this.devise,
+        pays:          pays         ?? this.pays,
+        ville:         ville        ?? this.ville,
       );
 }

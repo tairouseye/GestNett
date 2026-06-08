@@ -35,6 +35,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String? _logoUrl;
   String? _signatureUrl;
+  String _pays = 'Sénégal';
+  String _ville = 'Dakar';
+
+  static const Map<String, List<String>> _villes = {
+    'Sénégal': ['Dakar', 'Thiès', 'Saint-Louis', 'Ziguinchor', 'Kaolack', 'Mbour', 'Touba', 'Diourbel'],
+    'Mali':    ['Bamako', 'Sikasso', 'Mopti', 'Ségou', 'Gao', 'Koutiala', 'Tombouctou', 'Kayes'],
+  };
+
+  static const Map<String, String> _indicatifs = {
+    'Sénégal': '(+221)',
+    'Mali':    '(+223)',
+  };
 
   @override
   void initState() {
@@ -77,6 +89,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _banqueCtrl.text  = s.nomBanque ?? '';
           _logoUrl          = s.logoUrl;
           _signatureUrl     = s.signatureUrl;
+          _pays             = s.pays;
+          _ville            = s.ville;
         }
         _loading = false;
       });
@@ -134,6 +148,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         nomBanque: _v(_banqueCtrl),
         logoUrl:        _logoUrl,
         signatureUrl:   _signatureUrl,
+        pays:           _pays,
+        ville:          _ville,
       );
       final saved = await CompanySettingsService.save(updated);
       setState(() { _settings = saved; _saving = false; });
@@ -200,6 +216,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _field(ctrl: _sloganCtrl, label: 'Slogan', hint: 'Ex: Solutions professionnelles de nettoyage'),
                     const SizedBox(height: 12),
                     _field(ctrl: _descCtrl, label: 'Services / Description', hint: 'Ex: Nettoyage industriel, BTP, placement de personnel...', maxLines: 2),
+                    const SizedBox(height: 12),
+                    // Pays / Ville
+                    Row(children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _pays,
+                          decoration: const InputDecoration(
+                            labelText: 'Pays',
+                            prefixIcon: Icon(Icons.flag_outlined, size: 18),
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          items: _villes.keys.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                          onChanged: (p) {
+                            if (p == null) return;
+                            final firstVille = _villes[p]!.first;
+                            setState(() {
+                              _pays  = p;
+                              _ville = firstVille;
+                            });
+                            if (_adresseCtrl.text.trim().isEmpty) {
+                              _adresseCtrl.text = '$firstVille, $p';
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _ville,
+                          decoration: const InputDecoration(
+                            labelText: 'Ville',
+                            prefixIcon: Icon(Icons.location_city_outlined, size: 18),
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          items: (_villes[_pays] ?? []).map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() => _ville = v);
+                            if (_adresseCtrl.text.trim().isEmpty) {
+                              _adresseCtrl.text = '$v, $_pays';
+                            }
+                          },
+                        ),
+                      ),
+                    ]),
                     const SizedBox(height: 12),
                     _field(ctrl: _adresseCtrl, label: 'Adresse', hint: 'Ex: Ouakam Tagolou – Dakar, Sénégal', prefixIcon: Icons.location_on_outlined),
                     const SizedBox(height: 12),

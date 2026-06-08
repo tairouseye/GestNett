@@ -52,12 +52,6 @@ class DashboardScreen extends ConsumerWidget {
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () => context.go('/notifications'),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authServiceProvider).signOut();
-            },
-          ),
         ],
       ),
       body: RefreshIndicator(
