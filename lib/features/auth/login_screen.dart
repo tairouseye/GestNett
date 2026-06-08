@@ -299,6 +299,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ),
   );
 
+  // ── Mot de passe oublié — étape 2 : vérifier le code OTP ─────────────────
+
+  Future<void> _verifyOtpAndLogin() async {
+    final code = _codeCtrl.text.trim();
+    if (code.length < 6) {
+      setState(() => _error = 'Entrez le code à 6 chiffres reçu par email');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      final ok = await ref.read(authServiceProvider).verifyLoginOtp(
+          email: _forgotEmail, token: code);
+      if (!ok) {
+        if (mounted) setState(() {
+          _error = 'Code invalide ou expiré.';
+          _loading = false;
+        });
+        return;
+      }
+      if (mounted) context.go('/');
+    } catch (e) {
+      if (mounted) setState(() { _error = _friendlyError(e); _loading = false; });
+    }
+  }
+
   // ── Carte Mot de passe oublié — étape 2 ───────────────────────────────────
 
   Widget _buildForgotStep2() => _Card(
@@ -306,51 +331,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _BackRow(
-            onBack: () => _setMode(_Mode.login),
-            title: 'Email envoyé'),
-        const SizedBox(height: 20),
-
+        _BackRow(onBack: () => _setMode(_Mode.forgotStep1), title: 'Vérification'),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: AppColors.g50,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: AppColors.g100),
           ),
-          child: Column(children: [
-            const Icon(Icons.mark_email_read_outlined,
-                color: AppColors.g600, size: 40),
-            const SizedBox(height: 12),
-            Text(
-              'Un lien de connexion a été envoyé à\n$_forgotEmail',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.g700, fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Cliquez sur le lien dans votre email pour vous connecter automatiquement.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.s400, fontSize: 12),
+          child: Row(children: [
+            const Icon(Icons.mark_email_read_outlined, color: AppColors.g600, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Code à 6 chiffres envoyé à\n$_forgotEmail',
+                  style: const TextStyle(color: AppColors.g700, fontSize: 12)),
             ),
           ]),
         ),
         const SizedBox(height: 20),
-
+        TextFormField(
+          controller: _codeCtrl,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: 6,
+          autofocus: true,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          onFieldSubmitted: (_) => _verifyOtpAndLogin(),
+          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 10),
+          decoration: const InputDecoration(
+            labelText: 'Code reçu',
+            counterText: '',
+            hintText: '· · · · · ·',
+            hintStyle: TextStyle(letterSpacing: 8, fontSize: 22, color: AppColors.g300),
+          ),
+        ),
+        _ErrorBox(_error),
+        const SizedBox(height: 20),
+        _SubmitButton(loading: _loading, label: 'Se connecter', icon: Icons.login, onPressed: _verifyOtpAndLogin),
+        const SizedBox(height: 8),
         Center(
           child: TextButton.icon(
             onPressed: _loading ? null : _sendResetCode,
             icon: const Icon(Icons.refresh, size: 14, color: AppColors.g500),
-            label: const Text('Renvoyer le lien',
-                style: TextStyle(color: AppColors.g500, fontSize: 12)),
+            label: const Text('Renvoyer le code', style: TextStyle(color: AppColors.g500, fontSize: 12)),
           ),
-        ),
-        const SizedBox(height: 8),
-        _SubmitButton(
-          loading: false,
-          label: 'Retour à la connexion',
-          icon: Icons.arrow_back,
-          onPressed: () => _setMode(_Mode.login),
         ),
       ],
     ),

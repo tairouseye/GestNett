@@ -35,12 +35,22 @@ class AuthService {
     return _fetchOrCreateProfile(res.user!);
   }
 
-  /// Envoie un lien de connexion par email (cliquer = connecté directement)
+  /// Envoie un code OTP à 6 chiffres par email
   Future<void> sendLoginOtp(String email) async {
-    await _client.auth.resetPasswordForEmail(
-      email,
-      redirectTo: 'https://tairouseye.github.io/GestNett/',
+    await _client.auth.signInWithOtp(
+      email: email,
+      shouldCreateUser: false,
     );
+  }
+
+  /// Vérifie le code OTP et connecte l'utilisateur
+  Future<bool> verifyLoginOtp({required String email, required String token}) async {
+    final res = await _client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.email,
+    );
+    return res.user != null;
   }
 
   /// Met à jour le mot de passe de l'utilisateur connecté (depuis les réglages)
