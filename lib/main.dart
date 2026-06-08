@@ -17,7 +17,13 @@ Future<void> main() async {
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+      autoRefreshToken: false,
+    ),
   );
+  // Déconnexion systématique à chaque ouverture de l'app
+  await Supabase.instance.client.auth.signOut();
 
   runApp(const ProviderScope(child: GesProApp()));
 }
