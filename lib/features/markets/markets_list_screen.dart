@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/logout_button.dart';
 import '../../models/market.dart';
 import '../../services/market_service.dart';
 
@@ -31,7 +32,7 @@ class _MarketsListScreenState extends State<MarketsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Marchés')),
+      appBar: AppBar(title: const Text('Marchés'), actions: const [LogoutButton()]),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.go('/markets/new'),
         child: const Icon(Icons.add),

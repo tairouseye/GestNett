@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/logout_button.dart';
 import '../../models/client.dart';
 import '../../services/client_service.dart';
 
@@ -25,6 +26,7 @@ class ClientsListScreen extends ConsumerWidget {
             icon: const Icon(Icons.search),
             onPressed: () {/* TODO: search */},
           ),
+          const LogoutButton(),
         ],
       ),
       floatingActionButton: FloatingActionButton(

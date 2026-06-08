@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/logout_button.dart';
 import '../../models/expense.dart';
 import '../../models/market.dart';
 import '../../services/expense_service.dart';
@@ -36,6 +37,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(_expensesProvider),
           ),
+          const LogoutButton(),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

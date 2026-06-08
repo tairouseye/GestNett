@@ -112,22 +112,7 @@ class _AppShellState extends State<AppShell> {
             }
           },
           behavior: HitTestBehavior.translucent,
-          child: Stack(
-            children: [
-              widget.child,
-              Positioned(
-                top: 0,
-                right: 0,
-                child: SafeArea(
-                  child: IconButton(
-                    icon: const Icon(Icons.logout, color: AppColors.red, size: 22),
-                    tooltip: 'Quitter',
-                    onPressed: _logout,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: widget.child,
         ),
       ),
       bottomNavigationBar: Container(

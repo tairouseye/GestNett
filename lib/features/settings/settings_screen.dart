@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/logout_button.dart';
 import '../../models/company_settings.dart';
 import '../../services/company_settings_service.dart';
 
@@ -179,6 +180,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Paramètres entreprise'),
         backgroundColor: AppColors.g700,
         foregroundColor: Colors.white,
+        actions: const [LogoutButton()],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

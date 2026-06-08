@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/logout_button.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
@@ -52,6 +53,7 @@ class DashboardScreen extends ConsumerWidget {
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () => context.go('/notifications'),
           ),
+          const LogoutButton(),
         ],
       ),
       body: RefreshIndicator(

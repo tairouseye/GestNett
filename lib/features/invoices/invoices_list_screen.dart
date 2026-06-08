@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/logout_button.dart';
 import '../../models/invoice.dart';
 import '../../services/invoice_service.dart';
 
@@ -32,7 +33,7 @@ class _InvoicesListScreenState extends State<InvoicesListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Factures')),
+      appBar: AppBar(title: const Text('Factures'), actions: const [LogoutButton()]),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.go('/invoices/new'),
         child: const Icon(Icons.add),

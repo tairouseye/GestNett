@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/logout_button.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/employe.dart';
 import '../../services/employe_service.dart';
@@ -43,6 +44,7 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
         title: const Text('Personnel'),
         backgroundColor: AppColors.g700,
         foregroundColor: Colors.white,
+        actions: const [LogoutButton()],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
