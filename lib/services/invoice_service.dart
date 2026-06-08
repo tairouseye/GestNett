@@ -30,6 +30,7 @@ class InvoiceService {
         .from('invoices')
         .select('*, clients(nom), markets(numero)')
         .eq('id', id)
+        .eq('created_by', _uid)
         .maybeSingle();
     if (data == null) return null;
     return Invoice.fromMap(data);

@@ -139,13 +139,13 @@ class PdfService {
   // ─────────────────────────────────────────────────────────────────────────────
   static pw.Widget _buildHeader(
       pw.ImageProvider? logo, CompanySettings? settings) {
-    final name    = settings?.companyName.isNotEmpty == true ? settings!.companyName : 'D2SERVICES';
-    final slogan  = settings?.slogan ?? 'SOLUTIONS PROFESSIONNELLES DE NETTOYAGE, BTP ET SERVICES ASSOCIÉS';
-    final desc    = settings?.description ?? 'Entreprise de nettoyage professionnel, industriel, BTP, Placement de personnel,\nDéco, Phytosanitaire & services connexes.';
-    final adresse = settings?.adresse ?? 'Ouakam Tagolou – Dakar, Sénégal';
-    final tel     = settings?.telephone ?? '(+221) 77 562 03 50';
+    final name    = settings?.companyName.isNotEmpty == true ? settings!.companyName : 'GesPro';
+    final slogan  = settings?.slogan ?? '';
+    final desc    = settings?.description ?? '';
+    final adresse = settings?.adresse ?? '';
+    final tel     = settings?.telephone ?? '';
     final tel2    = settings?.telephone2;
-    final email   = settings?.email ?? 'd2services2018net@gmail.com';
+    final email   = settings?.email ?? '';
     final telLine = tel2 != null && tel2.isNotEmpty ? 'Tel: $tel / $tel2' : 'Tel: $tel';
     final initials = name.length >= 2 ? name.substring(0, 2).toUpperCase() : name;
 

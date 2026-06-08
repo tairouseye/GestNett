@@ -21,9 +21,11 @@ class PaymentService {
     final data = await _db
         .select()
         .eq('invoice_id', invoiceId)
+        .eq('created_by', _uid)
         .order('date', ascending: false);
     return (data as List).map((m) => Payment.fromMap(m)).toList();
   }
 
-  Future<void> delete(String id) => _db.delete().eq('id', id);
+  Future<void> delete(String id) =>
+      _db.delete().eq('id', id).eq('created_by', _uid);
 }

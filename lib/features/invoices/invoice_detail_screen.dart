@@ -216,13 +216,18 @@ class _PdfActionsCardState extends State<_PdfActionsCard> {
     });
   }
 
-  String get _waMsg =>
-      'Bonjour,\n\nVeuillez trouver ci-joint votre facture D2SERVICES.\n\n'
-      '📄 Facture N° : ${invoice.numero}\n'
-      '👤 Client : ${invoice.clientNom ?? ''}\n'
-      '💰 Total TTC : ${Formatters.fcfa(invoice.totalTtc)}\n\n'
-      'Cordialement,\nD2SERVICES – La Responsable\n'
-      '📞 (+221) 77 562 03 50';
+  String get _waMsg {
+    final name = _settings?.companyName.isNotEmpty == true
+        ? _settings!.companyName
+        : 'GesPro';
+    final tel = _settings?.telephone;
+    return 'Bonjour,\n\nVeuillez trouver ci-joint votre facture $name.\n\n'
+        '📄 Facture N° : ${invoice.numero}\n'
+        '👤 Client : ${invoice.clientNom ?? ''}\n'
+        '💰 Total TTC : ${Formatters.fcfa(invoice.totalTtc)}\n\n'
+        'Cordialement,\n$name'
+        '${tel != null && tel.isNotEmpty ? '\n📞 $tel' : ''}';
+  }
 
   Future<bool> _launch(Uri uri) async {
     if (await canLaunchUrl(uri)) {

@@ -1280,13 +1280,15 @@ class _StepFinishState extends State<_StepFinish> {
   Future<void> _shareWhatsApp() async {
     if (_pdfBytes == null) return;
     final d = widget.data;
+    final name = _settings?.companyName.isNotEmpty == true
+        ? _settings!.companyName : 'GesPro';
     final msg =
-        'Bonjour,\n\nVeuillez trouver ci-joint votre facture D2SERVICES.\n\n'
+        'Bonjour,\n\nVeuillez trouver ci-joint votre facture $name.\n\n'
         '📄 Facture N° : ${d.numero}\n'
         '📅 Date : ${DateFormat('dd MMMM yyyy', 'fr_FR').format(d.date)}\n'
         '👤 Client : ${d.clientNom}\n'
         '💰 Total TTC : ${Formatters.fcfa(d.totalTTC)}\n\n'
-        'Cordialement,\n${_settings?.companyName ?? 'GesPro'}'
+        'Cordialement,\n$name'
         '${_settings?.telephone != null ? '\n📞 ${_settings!.telephone}' : ''}';
 
     if (kIsWeb) {
@@ -1339,11 +1341,13 @@ class _StepFinishState extends State<_StepFinish> {
 
   Future<void> _shareEmail() async {
     final d = widget.data;
-    final subject = Uri.encodeComponent('Facture D2SERVICES – ${d.numero}');
+    final companyName = _settings?.companyName.isNotEmpty == true
+        ? _settings!.companyName : 'GesPro';
+    final subject = Uri.encodeComponent('Facture $companyName – ${d.numero}');
     final body = Uri.encodeComponent(
-      'Bonjour,\n\nVeuillez trouver ci-joint votre facture D2SERVICES.\n\n'
+      'Bonjour,\n\nVeuillez trouver ci-joint votre facture $companyName.\n\n'
       'N° ${d.numero}\nTotal TTC : ${Formatters.fcfa(d.totalTTC)}\n\n'
-      'Cordialement,\nD2SERVICES',
+      'Cordialement,\n$companyName',
     );
     final uri = Uri.parse('mailto:?subject=$subject&body=$body');
     if (await canLaunchUrl(uri)) await launchUrl(uri);

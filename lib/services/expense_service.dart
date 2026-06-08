@@ -17,6 +17,7 @@ class ExpenseService {
     final data = await _db
         .select('*, markets(numero)')
         .eq('market_id', marketId)
+        .eq('created_by', _uid)
         .order('date', ascending: false);
     return (data as List).map((m) => Expense.fromMap(m)).toList();
   }
@@ -38,5 +39,6 @@ class ExpenseService {
     return Expense.fromMap(data);
   }
 
-  Future<void> delete(String id) => _db.delete().eq('id', id);
+  Future<void> delete(String id) =>
+      _db.delete().eq('id', id).eq('created_by', _uid);
 }
