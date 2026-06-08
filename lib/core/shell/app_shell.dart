@@ -99,24 +99,36 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       body: Listener(
-        onPointerDown:   (_) => _onActivity(),
-        onPointerMove:   (_) => _onActivity(),
+        onPointerDown: (_) => _onActivity(),
+        onPointerMove: (_) => _onActivity(),
         child: GestureDetector(
-        onHorizontalDragEnd: (details) {
-          // Seuil minimal pour déclencher la navigation
-          const threshold = 150.0;
-          final velocity = details.primaryVelocity ?? 0;
-          if (velocity > threshold && current > 0) {
-            // Glissement vers la droite → onglet précédent
-            context.go(_tabs[current - 1].path);
-          } else if (velocity < -threshold && current < _tabs.length - 1) {
-            // Glissement vers la gauche → onglet suivant
-            context.go(_tabs[current + 1].path);
-          }
-        },
-        behavior: HitTestBehavior.translucent,
-        child: widget.child,
-      ),
+          onHorizontalDragEnd: (details) {
+            const threshold = 150.0;
+            final velocity = details.primaryVelocity ?? 0;
+            if (velocity > threshold && current > 0) {
+              context.go(_tabs[current - 1].path);
+            } else if (velocity < -threshold && current < _tabs.length - 1) {
+              context.go(_tabs[current + 1].path);
+            }
+          },
+          behavior: HitTestBehavior.translucent,
+          child: Stack(
+            children: [
+              widget.child,
+              Positioned(
+                top: 0,
+                right: 0,
+                child: SafeArea(
+                  child: IconButton(
+                    icon: const Icon(Icons.logout, color: AppColors.red, size: 22),
+                    tooltip: 'Quitter',
+                    onPressed: _logout,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
@@ -171,28 +183,6 @@ class _AppShellState extends State<AppShell> {
                   ),
                 );
               }),
-              // Bouton déconnexion
-              InkWell(
-                onTap: _logout,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.logout, size: 22, color: AppColors.red),
-                      SizedBox(height: 3),
-                      Text('Quitter',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.red)),
-                      SizedBox(height: 4),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ),
