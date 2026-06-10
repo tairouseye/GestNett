@@ -166,6 +166,7 @@ class _EmployeCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: onTap,
+        isThreeLine: employe.matricule != null,
         leading: CircleAvatar(
           backgroundColor: actif ? AppColors.g100 : AppColors.s100,
           child: Text(

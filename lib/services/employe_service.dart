@@ -74,11 +74,11 @@ class EmployeService {
   /// Génère un matricule unique : [CODE_ENTREPRISE]-[ANNÉE]-[SEQ]
   Future<String> generateMatricule() async {
     final settings = await CompanySettingsService.getMySettings();
-    final raw = settings?.companyName ?? 'EMP';
-    final code = raw
-        .toUpperCase()
-        .replaceAll(RegExp(r'[^A-Z0-9]'), '')
-        .substring(0, min(3, raw.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').length));
+    final raw  = settings?.companyName ?? '';
+    final clean = raw.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    final code  = clean.isNotEmpty
+        ? clean.substring(0, min(3, clean.length))
+        : 'EMP';
     final year = DateTime.now().year;
     final res  = await _db
         .from('employes')
@@ -134,11 +134,14 @@ class EmployeService {
     await _db
         .from('affectations')
         .update({'date_fin': DateTime.now().toIso8601String().substring(0, 10)})
-        .eq('id', affectationId);
+        .eq('id', affectationId)
+        .eq('created_by', _uid);
   }
 
   Future<void> supprimerAffectation(String affectationId) async {
-    await _db.from('affectations').delete().eq('id', affectationId);
+    await _db.from('affectations').delete()
+        .eq('id', affectationId)
+        .eq('created_by', _uid);
   }
 
   /// Coût total mensuel d'un marché (brut + patronale + frais pour chaque employé actif)

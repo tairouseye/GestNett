@@ -40,13 +40,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _ville = 'Dakar';
 
   static const Map<String, List<String>> _villes = {
-    'Sénégal': ['Dakar', 'Thiès', 'Saint-Louis', 'Ziguinchor', 'Kaolack', 'Mbour', 'Touba', 'Diourbel'],
-    'Mali':    ['Bamako', 'Sikasso', 'Mopti', 'Ségou', 'Gao', 'Koutiala', 'Tombouctou', 'Kayes'],
+    'Sénégal':        ['Dakar', 'Thiès', 'Saint-Louis', 'Ziguinchor', 'Kaolack', 'Mbour', 'Touba', 'Diourbel'],
+    'Mali':           ['Bamako', 'Sikasso', 'Mopti', 'Ségou', 'Gao', 'Koutiala', 'Tombouctou', 'Kayes'],
+    'Côte d\'Ivoire': ['Abidjan', 'Bouaké', 'Daloa', 'Yamoussoukro', 'San-Pédro', 'Korhogo', 'Man', 'Divo'],
+    'Burkina Faso':   ['Ouagadougou', 'Bobo-Dioulasso', 'Koudougou', 'Banfora', 'Ouahigouya', 'Kaya', 'Tenkodogo'],
+    'Guinée Conakry': ['Conakry', 'Kankan', 'Labé', 'Kindia', 'Nzérékoré', 'Siguiri', 'Mamou'],
+    'Mauritanie':     ['Nouakchott', 'Nouadhibou', 'Kiffa', 'Kaédi', 'Zouerate', 'Rosso', 'Atar'],
+    'Gambie':         ['Banjul', 'Serekunda', 'Brikama', 'Bakau', 'Farafenni', 'Lamin'],
   };
 
   static const Map<String, String> _indicatifs = {
-    'Sénégal': '(+221)',
-    'Mali':    '(+223)',
+    'Sénégal':        '(+221)',
+    'Mali':           '(+223)',
+    'Côte d\'Ivoire': '(+225)',
+    'Burkina Faso':   '(+226)',
+    'Guinée Conakry': '(+224)',
+    'Mauritanie':     '(+222)',
+    'Gambie':         '(+220)',
   };
 
   @override

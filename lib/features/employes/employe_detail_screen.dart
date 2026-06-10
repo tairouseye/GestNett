@@ -201,27 +201,31 @@ class _InfoCard extends StatelessWidget {
                 icon: Icons.calendar_today_outlined),
           if (employe.notes != null)
             _row('Notes', employe.notes!, icon: Icons.notes_outlined),
-          const Divider(height: 20),
-          // ── Tableau financier ──
-          _finRow('Salaire brut', employe.salaireMensuel),
-          _finRow('Part patronale', employe.partPatronale),
-          _finRow(
-            employe.fraisGestionType == 'pct'
-                ? 'Frais gestion (${employe.fraisGestionPct.toStringAsFixed(0)}%)'
-                : 'Frais gestion',
-            employe.fraisGestion,
-          ),
-          const Divider(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(children: [
-              const Expanded(child: Text('Coût total / mois',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-              Text(Formatters.fcfa(employe.coutTotal),
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.g700)),
-            ]),
-          ),
+          if (employe.salaireMensuel > 0 || employe.partPatronale > 0 || employe.fraisGestion > 0) ...[
+            const Divider(height: 20),
+            if (employe.salaireMensuel > 0)
+              _finRow('Salaire brut', employe.salaireMensuel),
+            if (employe.partPatronale > 0)
+              _finRow('Part patronale', employe.partPatronale),
+            if (employe.fraisGestion > 0)
+              _finRow(
+                employe.fraisGestionType == 'pct'
+                    ? 'Frais gestion (${employe.fraisGestionPct.toStringAsFixed(0)}%)'
+                    : 'Frais gestion',
+                employe.fraisGestion,
+              ),
+            const Divider(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(children: [
+                const Expanded(child: Text('Coût total / mois',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                Text(Formatters.fcfa(employe.coutTotal),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.g700)),
+              ]),
+            ),
+          ],
         ]),
       ),
     );

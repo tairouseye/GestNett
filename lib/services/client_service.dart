@@ -35,12 +35,14 @@ class ClientService {
     final data = await _db
         .update(fields)
         .eq('id', id)
+        .eq('created_by', _uid)
         .select()
         .single();
     return Client.fromMap(data);
   }
 
-  Future<void> delete(String id) => _db.delete().eq('id', id);
+  Future<void> delete(String id) =>
+      _db.delete().eq('id', id).eq('created_by', _uid);
 
   // Recherche par nom
   Future<List<Client>> search(String query) async {

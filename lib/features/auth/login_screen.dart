@@ -20,11 +20,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _loading = false;
   String? _error;
 
-  final _emailCtrl      = TextEditingController();
-  final _passCtrl       = TextEditingController(); // login seulement
-  final _codeCtrl       = TextEditingController();
-  final _newPassCtrl    = TextEditingController();
-  final _newConfirmCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl  = TextEditingController();
+  final _codeCtrl  = TextEditingController();
 
   String _forgotEmail = '';
 
@@ -33,8 +31,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _codeCtrl.dispose();
-    _newPassCtrl.dispose();
-    _newConfirmCtrl.dispose();
     super.dispose();
   }
 
@@ -43,8 +39,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _error = null;
     if (clearEmail) _emailCtrl.clear();
     _passCtrl.clear();
-    _newPassCtrl.clear();
-    _newConfirmCtrl.clear();
   });
 
   // ── Connexion ──────────────────────────────────────────────────────────────

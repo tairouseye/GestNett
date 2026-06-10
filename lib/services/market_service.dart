@@ -81,6 +81,7 @@ class MarketService {
         .from('markets')
         .update({'statut': statut.value})
         .eq('id', id)
+        .eq('created_by', _uid)
         .select('*, clients(nom)')
         .single();
     return Market.fromMap(data);
@@ -91,6 +92,7 @@ class MarketService {
         .from('markets')
         .update(fields)
         .eq('id', id)
+        .eq('created_by', _uid)
         .select('*, clients(nom)')
         .single();
     return Market.fromMap(data);
