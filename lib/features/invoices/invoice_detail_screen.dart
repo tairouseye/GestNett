@@ -94,6 +94,13 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       _InvoiceInfoCard(invoice: _invoice!),
+                      if (_invoice!.isProforma) ...[
+                        const SizedBox(height: 12),
+                        _ConvertProformaCard(
+                          invoice: _invoice!,
+                          onConverted: _load,
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       _PdfActionsCard(invoice: _invoice!),
                       const SizedBox(height: 12),
@@ -159,20 +166,31 @@ class _InvoiceInfoCard extends StatelessWidget {
                   child: Text(invoice.clientNom ?? 'Client',
                       style: Theme.of(context).textTheme.titleLarge),
                 ),
+                if (invoice.isProforma)
+                  Container(
+                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B4F8A).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF1B4F8A).withValues(alpha: 0.3)),
+                    ),
+                    child: const Text('PROFORMA',
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1B4F8A))),
+                  ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: statusColor.withValues(alpha: 0.3)),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(invoice.statut.label,
                       style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor)),
+                          fontSize: 11, fontWeight: FontWeight.w700, color: statusColor)),
                 ),
               ],
             ),
@@ -190,6 +208,90 @@ class _InvoiceInfoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Conversion Proforma → Définitive ─────────────────────────────────────────
+
+class _ConvertProformaCard extends StatefulWidget {
+  final Invoice invoice;
+  final VoidCallback onConverted;
+  const _ConvertProformaCard({required this.invoice, required this.onConverted});
+
+  @override
+  State<_ConvertProformaCard> createState() => _ConvertProformaCardState();
+}
+
+class _ConvertProformaCardState extends State<_ConvertProformaCard> {
+  bool _loading = false;
+
+  Future<void> _convert() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmer en facture définitive ?'),
+        content: const Text(
+            'Cette action est irréversible. La proforma deviendra une facture définitive.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.g700),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmer', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _loading = true);
+    try {
+      await InvoiceService().convertirEnDefinitive(widget.invoice.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Facture convertie en définitive'),
+              backgroundColor: AppColors.g600),
+        );
+        widget.onConverted();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur : $e'), backgroundColor: AppColors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    color: const Color(0xFFEEF3FA),
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(children: [
+        const Icon(Icons.info_outline, color: Color(0xFF1B4F8A), size: 20),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'Cette facture est une proforma (avant-projet).',
+            style: TextStyle(fontSize: 12, color: Color(0xFF1B4F8A)),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.g700,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            textStyle: const TextStyle(fontSize: 12),
+          ),
+          onPressed: _loading ? null : _convert,
+          child: _loading
+              ? const SizedBox(width: 14, height: 14,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : const Text('Confirmer en définitive'),
+        ),
+      ]),
+    ),
+  );
 }
 
 // ── Actions PDF ───────────────────────────────────────────────────────────────

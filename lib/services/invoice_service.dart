@@ -74,7 +74,19 @@ class InvoiceService {
     await _supabase
         .from('invoices')
         .update({'statut': statut.value})
-        .eq('id', id);
+        .eq('id', id)
+        .eq('created_by', _uid);
+  }
+
+  Future<Invoice> convertirEnDefinitive(String id) async {
+    final data = await _supabase
+        .from('invoices')
+        .update({'type_facture': 'definitive'})
+        .eq('id', id)
+        .eq('created_by', _uid)
+        .select('*, clients(nom), markets(numero)')
+        .single();
+    return Invoice.fromMap(data);
   }
 
   // Paiements liés

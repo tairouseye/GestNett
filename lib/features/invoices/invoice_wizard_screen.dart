@@ -453,6 +453,39 @@ class _StepClientState extends State<_StepClient> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Type de facture ───────────────────────────────────────
+          _StepQuestion(icon: '📄', question: 'Type de facture'),
+          const SizedBox(height: 10),
+          ToggleButtons(
+            isSelected: [
+              widget.data.typeFacture == 'definitive',
+              widget.data.typeFacture == 'proforma',
+            ],
+            onPressed: (i) {
+              setState(() {
+                widget.data.typeFacture = i == 0 ? 'definitive' : 'proforma';
+              });
+              widget.onChange();
+            },
+            borderRadius: BorderRadius.circular(8),
+            selectedColor: Colors.white,
+            fillColor: widget.data.typeFacture == 'proforma'
+                ? AppColors.g600.withValues(alpha: 0.85)
+                : AppColors.g700,
+            constraints: const BoxConstraints(minWidth: 145, minHeight: 40),
+            children: const [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Text('Définitive', style: TextStyle(fontSize: 13)),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Text('Proforma', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
           // ── Client ────────────────────────────────────────────────
           _StepQuestion(icon: '👤', question: 'Client *'),
           const SizedBox(height: 10),
@@ -1262,10 +1295,11 @@ class _StepFinishState extends State<_StepFinish> {
       marketId: d.marketId,
       date: d.date,
       montantHt: d.netHT,
-      tvaPct: d.applyTva ? 18.0 : 0.0,
-      totalTtc: d.totalTTC,
-      statut: InvoiceStatut.emise,
-      createdAt: DateTime.now(),
+      tvaPct:       d.applyTva ? 18.0 : 0.0,
+      totalTtc:     d.totalTTC,
+      statut:       InvoiceStatut.emise,
+      typeFacture:  d.typeFacture,
+      createdAt:    DateTime.now(),
     ));
     _savedInvoiceId = invoice.id;
     if (mounted) setState(() => widget.data.numero = invoice.numero);

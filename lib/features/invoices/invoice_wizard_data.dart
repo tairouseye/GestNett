@@ -24,6 +24,7 @@ class InvoiceWizardData {
   bool applyTva;
   DateTime date;
   String numero;
+  String typeFacture; // 'proforma' | 'definitive'
 
   InvoiceWizardData({
     this.clientNom = '',
@@ -36,6 +37,7 @@ class InvoiceWizardData {
     this.applyTva = false,
     DateTime? date,
     String? numero,
+    this.typeFacture = 'definitive',
   })  : prestations = prestations ?? [PrestationLine(designation: '', montant: 0)],
         date = date ?? DateTime.now(),
         numero = numero ?? _generateNumero();

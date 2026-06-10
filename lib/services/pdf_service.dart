@@ -47,6 +47,7 @@ class PdfService {
       applyTva: invoice.tvaPct > 0,
       date: invoice.date,
       numero: invoice.numero,
+      typeFacture: invoice.typeFacture,
     );
     return generateInvoice(data, settings: settings);
   }
@@ -111,7 +112,7 @@ class PdfService {
             pw.SizedBox(height: 14),
 
             // ── 3. TITRE FACTURE ────────────────────────────────────────────
-            _buildTitle(data.numero),
+            _buildTitle(data.numero, isProforma: data.typeFacture == 'proforma'),
             pw.SizedBox(height: 12),
 
             // ── 4. TABLEAU ─────────────────────────────────────────────────
@@ -264,17 +265,17 @@ class PdfService {
   // ─────────────────────────────────────────────────────────────────────────────
   // TITRE FACTURE
   // ─────────────────────────────────────────────────────────────────────────────
-  static pw.Widget _buildTitle(String numero) {
+  static pw.Widget _buildTitle(String numero, {bool isProforma = false}) {
     return pw.Column(
       children: [
         pw.Center(
           child: pw.Text(
-            'FACTURE',
+            isProforma ? 'FACTURE PROFORMA' : 'FACTURE',
             style: pw.TextStyle(
               font: pw.Font.helveticaBold(),
               fontSize: 18,
               decoration: pw.TextDecoration.underline,
-              color: _textBlack,
+              color: isProforma ? _textBlue : _textBlack,
             ),
           ),
         ),

@@ -38,6 +38,7 @@ class Invoice {
   final double tvaPct;
   final double totalTtc;
   final InvoiceStatut statut;
+  final String typeFacture; // 'proforma' | 'definitive'
   final String? pdfUrl;
   final DateTime createdAt;
 
@@ -53,11 +54,13 @@ class Invoice {
     this.tvaPct = 18.0,
     required this.totalTtc,
     required this.statut,
+    this.typeFacture = 'definitive',
     this.pdfUrl,
     required this.createdAt,
   });
 
-  double get montantTva => montantHt * tvaPct / 100;
+  double get montantTva  => montantHt * tvaPct / 100;
+  bool   get isProforma  => typeFacture == 'proforma';
 
   factory Invoice.fromMap(Map<String, dynamic> m) => Invoice(
     id: m['id'] as String,
@@ -74,8 +77,9 @@ class Invoice {
     montantHt: (m['montant_ht'] as num?)?.toDouble() ?? 0,
     tvaPct: (m['tva_pct'] as num?)?.toDouble() ?? 18,
     totalTtc: (m['total_ttc'] as num?)?.toDouble() ?? 0,
-    statut: InvoiceStatutExt.fromValue(m['statut'] as String? ?? 'brouillon'),
-    pdfUrl: m['pdf_url'] as String?,
+    statut:      InvoiceStatutExt.fromValue(m['statut'] as String? ?? 'brouillon'),
+    typeFacture: m['type_facture'] as String? ?? 'definitive',
+    pdfUrl:      m['pdf_url'] as String?,
     createdAt: DateTime.parse(m['created_at'] as String),
   );
 
@@ -87,7 +91,8 @@ class Invoice {
     'montant_ht': montantHt.round(),
     'tva_pct': tvaPct,
     'total_ttc': totalTtc.round(),
-    'statut': statut.value,
+    'statut':       statut.value,
+    'type_facture': typeFacture,
     if (pdfUrl != null) 'pdf_url': pdfUrl,
   };
 }
