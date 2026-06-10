@@ -4,8 +4,10 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../models/employe.dart';
 import '../models/invoice.dart';
 import '../models/company_settings.dart';
+import '../core/utils/formatters.dart';
 import '../features/invoices/invoice_wizard_data.dart';
 
 class PdfService {
@@ -496,6 +498,261 @@ class PdfService {
             ),
         ],
       ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // FICHE DE PAIE
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  static final _moisFr = [
+    '', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  ];
+
+  static Future<Uint8List> generateFichePaie(
+    Employe employe,
+    DateTime period, {
+    CompanySettings? settings,
+    String? marketNumero,
+  }) async {
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: pw.Font.helvetica(),
+        bold: pw.Font.helveticaBold(),
+        italic: pw.Font.helveticaOblique(),
+        boldItalic: pw.Font.helveticaBoldOblique(),
+      ),
+    );
+
+    // Chargement logo et signature
+    pw.ImageProvider? logoImage;
+    pw.ImageProvider? cachetImage;
+
+    if (settings?.logoUrl != null && settings!.logoUrl!.isNotEmpty) {
+      try {
+        final resp = await http.get(Uri.parse(settings.logoUrl!));
+        if (resp.statusCode == 200) logoImage = pw.MemoryImage(resp.bodyBytes);
+      } catch (_) {}
+    }
+    if (logoImage == null) {
+      try {
+        final bytes = await rootBundle.load('assets/images/logo.png');
+        logoImage = pw.MemoryImage(bytes.buffer.asUint8List());
+      } catch (_) {}
+    }
+
+    if (settings?.signatureUrl != null && settings!.signatureUrl!.isNotEmpty) {
+      try {
+        final resp = await http.get(Uri.parse(settings.signatureUrl!));
+        if (resp.statusCode == 200) cachetImage = pw.MemoryImage(resp.bodyBytes);
+      } catch (_) {}
+    }
+    if (cachetImage == null) {
+      try {
+        final bytes = await rootBundle.load('assets/images/Signature.png');
+        cachetImage = pw.MemoryImage(bytes.buffer.asUint8List());
+      } catch (_) {}
+    }
+
+    final periodLabel = '${_moisFr[period.month]} ${period.year}';
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(30, 28, 30, 30),
+        build: (ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildHeader(logoImage, settings),
+            pw.SizedBox(height: 14),
+            _buildFicheEmployeBlock(employe, periodLabel, marketNumero),
+            pw.SizedBox(height: 14),
+            _buildFicheSalaireTable(employe),
+            pw.SizedBox(height: 12),
+            if (employe.partPatronale > 0 || employe.fraisGestion > 0)
+              _buildFicheChargesBlock(employe),
+            pw.SizedBox(height: 12),
+            _buildFicheArretee(employe),
+            pw.Spacer(),
+            _buildSignature(cachetImage),
+            pw.SizedBox(height: 16),
+            _buildFooter(settings),
+          ],
+        ),
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static pw.Widget _buildFicheEmployeBlock(
+      Employe employe, String period, String? marketNumero) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: const PdfColor.fromInt(0xFFDDDDDD)),
+        borderRadius: pw.BorderRadius.circular(4),
+        color: const PdfColor.fromInt(0xFFF8FCF9),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('FICHE DE PAIE',
+                  style: pw.TextStyle(
+                      font: pw.Font.helveticaBold(),
+                      fontSize: 13,
+                      color: _darkGreen,
+                      decoration: pw.TextDecoration.underline)),
+              pw.Text('Période : $period',
+                  style: pw.TextStyle(
+                      font: pw.Font.helveticaBold(),
+                      fontSize: 11,
+                      color: _textBlack)),
+            ],
+          ),
+          pw.SizedBox(height: 8),
+          pw.Divider(thickness: 0.5, color: const PdfColor.fromInt(0xFFCCCCCC)),
+          pw.SizedBox(height: 6),
+          _ficheRow('Employé', employe.nomComplet),
+          if (employe.matricule != null)
+            _ficheRow('Matricule', employe.matricule!),
+          if (employe.poste != null)
+            _ficheRow('Poste', employe.poste!),
+          if (employe.dateEmbauche != null)
+            _ficheRow('Date d\'embauche',
+                DateFormat('dd/MM/yyyy').format(employe.dateEmbauche!)),
+          if (marketNumero != null)
+            _ficheRow('Marché', marketNumero),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _ficheRow(String label, String value) => pw.Padding(
+    padding: const pw.EdgeInsets.symmetric(vertical: 2),
+    child: pw.Row(children: [
+      pw.SizedBox(
+        width: 110,
+        child: pw.Text(label,
+            style: pw.TextStyle(font: pw.Font.helvetica(), fontSize: 9,
+                color: _textGray)),
+      ),
+      pw.Text(value,
+          style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 9,
+              color: _textBlack)),
+    ]),
+  );
+
+  static pw.Widget _buildFicheSalaireTable(Employe employe) {
+    final fmt = NumberFormat('#,##0', 'fr_FR');
+    final rows = <pw.TableRow>[];
+
+    // En-tête
+    rows.add(pw.TableRow(
+      decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFE8F5E9)),
+      children: [
+        _cell('Désignation', bold: true, center: true),
+        _cell('Montant (FCFA)', bold: true, center: true, width: 130),
+      ],
+    ));
+
+    // Brut
+    rows.add(pw.TableRow(children: [
+      _cell('Salaire brut'),
+      _cell(fmt.format(employe.salaireMensuel.round()), right: true, width: 130),
+    ]));
+
+    // Retenues salariales
+    if (employe.partSalariale > 0) {
+      rows.add(pw.TableRow(children: [
+        _cell('Part salariale (retenues)', color: _textRed),
+        _cell('- ${fmt.format(employe.partSalariale.round())}',
+            right: true, width: 130, color: _textRed),
+      ]));
+    }
+
+    // Net à payer
+    rows.add(pw.TableRow(
+      decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFD6F8DF)),
+      children: [
+        _cell('NET À PAYER', bold: true),
+        _cell(fmt.format(employe.netAPayer.round()),
+            bold: true, right: true, width: 130),
+      ],
+    ));
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: _borderCol, width: 0.8),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(3),
+        1: const pw.FixedColumnWidth(130),
+      },
+      children: rows,
+    );
+  }
+
+  static pw.Widget _buildFicheChargesBlock(Employe employe) {
+    final fmt = NumberFormat('#,##0', 'fr_FR');
+    final rows = <pw.TableRow>[];
+
+    rows.add(pw.TableRow(
+      decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF5F5F5)),
+      children: [
+        _cell('Charges entreprise (informatif)', bold: true, center: true),
+        _cell('Montant (FCFA)', bold: true, center: true, width: 130),
+      ],
+    ));
+
+    rows.add(pw.TableRow(children: [
+      _cell('Part patronale'),
+      _cell(fmt.format(employe.partPatronale.round()), right: true, width: 130),
+    ]));
+
+    if (employe.fraisGestion > 0) {
+      final label = employe.fraisGestionType == 'pct'
+          ? 'Frais de gestion (${employe.fraisGestionPct.toStringAsFixed(0)}%)'
+          : 'Frais de gestion';
+      rows.add(pw.TableRow(children: [
+        _cell(label),
+        _cell(fmt.format(employe.fraisGestion.round()), right: true, width: 130),
+      ]));
+    }
+
+    rows.add(pw.TableRow(
+      decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFEEEEEE)),
+      children: [
+        _cell('Coût total mensuel', bold: true),
+        _cell(fmt.format(employe.coutTotal.round()),
+            bold: true, right: true, width: 130),
+      ],
+    ));
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: const PdfColor.fromInt(0xFFAAAAAA), width: 0.6),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(3),
+        1: const pw.FixedColumnWidth(130),
+      },
+      children: rows,
+    );
+  }
+
+  static pw.Widget _buildFicheArretee(Employe employe) {
+    return pw.RichText(
+      text: pw.TextSpan(children: [
+        pw.TextSpan(
+          text: 'Net à payer arrêté à la somme de : ',
+          style: pw.TextStyle(font: pw.Font.helvetica(), fontSize: 10),
+        ),
+        pw.TextSpan(
+          text: Formatters.montantEnLettres(employe.netAPayer),
+          style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 10),
+        ),
+      ]),
     );
   }
 }

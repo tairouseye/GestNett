@@ -20,6 +20,7 @@ class Employe {
   final String? poste;
   final String? telephone;
   final double salaireMensuel;   // = salaire brut
+  final double partSalariale;
   final double partPatronale;
   final String fraisGestionType; // 'montant' | 'pct'
   final double fraisGestionMontant;
@@ -37,6 +38,7 @@ class Employe {
     this.poste,
     this.telephone,
     this.salaireMensuel = 0,
+    this.partSalariale = 0,
     this.partPatronale = 0,
     this.fraisGestionType = 'montant',
     this.fraisGestionMontant = 0,
@@ -54,7 +56,8 @@ class Employe {
       ? salaireMensuel * fraisGestionPct / 100
       : fraisGestionMontant;
 
-  double get coutTotal => salaireMensuel + partPatronale + fraisGestion;
+  double get netAPayer  => salaireMensuel - partSalariale;
+  double get coutTotal  => salaireMensuel + partPatronale + fraisGestion;
 
   factory Employe.fromMap(Map<String, dynamic> m) => Employe(
         id:                   m['id'] as String,
@@ -63,6 +66,7 @@ class Employe {
         poste:                m['poste'] as String?,
         telephone:            m['telephone'] as String?,
         salaireMensuel:       (m['salaire_mensuel'] as num?)?.toDouble() ?? 0,
+        partSalariale:        (m['part_salariale'] as num?)?.toDouble() ?? 0,
         partPatronale:        (m['part_patronale'] as num?)?.toDouble() ?? 0,
         fraisGestionType:     m['frais_gestion_type'] as String? ?? 'montant',
         fraisGestionMontant:  (m['frais_gestion_montant'] as num?)?.toDouble() ?? 0,
@@ -82,6 +86,7 @@ class Employe {
         if (poste != null)       'poste':                poste,
         if (telephone != null)   'telephone':            telephone,
         'salaire_mensuel':       salaireMensuel.round(),
+        'part_salariale':        partSalariale.round(),
         'part_patronale':        partPatronale.round(),
         'frais_gestion_type':    fraisGestionType,
         'frais_gestion_montant': fraisGestionMontant.round(),

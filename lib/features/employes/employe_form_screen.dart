@@ -27,6 +27,7 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   final _posteCtrl         = TextEditingController();
   final _telCtrl           = TextEditingController();
   final _salaireCtrl       = TextEditingController();
+  final _partSalarialeCtrl = TextEditingController();
   final _partPatronaleCtrl = TextEditingController();
   final _fraisGestionCtrl  = TextEditingController();
   final _notesCtrl         = TextEditingController();
@@ -38,11 +39,13 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
 
   bool get _isEdit => widget.employeId != null;
 
-  double get _brut        => double.tryParse(_salaireCtrl.text.replaceAll(' ', '')) ?? 0;
-  double get _patronale   => double.tryParse(_partPatronaleCtrl.text.replaceAll(' ', '')) ?? 0;
-  double get _fraisValeur => double.tryParse(_fraisGestionCtrl.text.replaceAll(' ', '')) ?? 0;
-  double get _frais       => _fraisGestionType == 'pct' ? _brut * _fraisValeur / 100 : _fraisValeur;
-  double get _coutTotal   => _brut + _patronale + _frais;
+  double get _brut         => double.tryParse(_salaireCtrl.text.replaceAll(' ', '')) ?? 0;
+  double get _salariale    => double.tryParse(_partSalarialeCtrl.text.replaceAll(' ', '')) ?? 0;
+  double get _patronale    => double.tryParse(_partPatronaleCtrl.text.replaceAll(' ', '')) ?? 0;
+  double get _fraisValeur  => double.tryParse(_fraisGestionCtrl.text.replaceAll(' ', '')) ?? 0;
+  double get _frais        => _fraisGestionType == 'pct' ? _brut * _fraisValeur / 100 : _fraisValeur;
+  double get _netAPayer    => _brut - _salariale;
+  double get _coutTotal    => _brut + _patronale + _frais;
 
   @override
   void initState() {
@@ -74,8 +77,9 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         _prenomCtrl.text       = e.prenom ?? '';
         _posteCtrl.text        = e.poste ?? '';
         _telCtrl.text          = e.telephone ?? '';
-        _salaireCtrl.text      = e.salaireMensuel.round().toString();
-        _partPatronaleCtrl.text= e.partPatronale.round().toString();
+        _salaireCtrl.text       = e.salaireMensuel.round().toString();
+        _partSalarialeCtrl.text = e.partSalariale.round().toString();
+        _partPatronaleCtrl.text = e.partPatronale.round().toString();
         _fraisGestionType      = e.fraisGestionType;
         _fraisGestionCtrl.text = _fraisGestionType == 'pct'
             ? e.fraisGestionPct.toString()
@@ -110,6 +114,7 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         poste:                _posteCtrl.text.trim().isEmpty ? null : _posteCtrl.text.trim(),
         telephone:            _telCtrl.text.trim().isEmpty ? null : _telCtrl.text.trim(),
         salaireMensuel:       _brut,
+        partSalariale:        _salariale,
         partPatronale:        _patronale,
         fraisGestionType:     _fraisGestionType,
         fraisGestionMontant:  _fraisGestionType == 'montant' ? _fraisValeur : 0,
@@ -141,7 +146,8 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   void dispose() {
     _matriculeCtrl.dispose(); _nomCtrl.dispose(); _prenomCtrl.dispose();
     _posteCtrl.dispose(); _telCtrl.dispose(); _salaireCtrl.dispose();
-    _partPatronaleCtrl.dispose(); _fraisGestionCtrl.dispose(); _notesCtrl.dispose();
+    _partSalarialeCtrl.dispose(); _partPatronaleCtrl.dispose();
+    _fraisGestionCtrl.dispose(); _notesCtrl.dispose();
     super.dispose();
   }
 
@@ -224,6 +230,48 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                       validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
                       onChanged: (_) => setState(() {}),
                       decoration: _deco('Salaire brut (FCFA) *', prefixIcon: Icons.payments_outlined),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Part salariale
+                    TextFormField(
+                      controller: _partSalarialeCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => setState(() {}),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return null;
+                        final val = double.tryParse(v) ?? 0;
+                        if (val > _brut) return 'Ne peut pas dépasser le salaire brut';
+                        return null;
+                      },
+                      decoration: _deco('Part salariale / Retenues (FCFA)', prefixIcon: Icons.remove_circle_outline),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Net à payer (calculé)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.g50,
+                        border: Border.all(color: AppColors.g100),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Net à payer',
+                              style: TextStyle(fontSize: 13, color: AppColors.s500)),
+                          Text(
+                            Formatters.fcfa(_netAPayer),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.g700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
 

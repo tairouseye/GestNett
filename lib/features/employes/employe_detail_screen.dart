@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../models/company_settings.dart';
 import '../../models/employe.dart';
 import '../../models/market.dart';
+import '../../services/company_settings_service.dart';
 import '../../services/employe_service.dart';
 import '../../services/market_service.dart';
+import '../../services/pdf_service.dart';
 
 class EmployeDetailScreen extends StatefulWidget {
   final String employeId;
@@ -140,6 +146,11 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
                     children: [
                       _InfoCard(employe: _employe!),
                       const SizedBox(height: 12),
+                      _FichePaieCard(
+                        employe: _employe!,
+                        affectations: _affectations,
+                      ),
+                      const SizedBox(height: 12),
                       _AffectationsCard(
                         affectations: _affectations,
                         onAffecter: _affecter,
@@ -205,26 +216,35 @@ class _InfoCard extends StatelessWidget {
             const Divider(height: 20),
             if (employe.salaireMensuel > 0)
               _finRow('Salaire brut', employe.salaireMensuel),
-            if (employe.partPatronale > 0)
-              _finRow('Part patronale', employe.partPatronale),
-            if (employe.fraisGestion > 0)
-              _finRow(
-                employe.fraisGestionType == 'pct'
-                    ? 'Frais gestion (${employe.fraisGestionPct.toStringAsFixed(0)}%)'
-                    : 'Frais gestion',
-                employe.fraisGestion,
+            if (employe.partSalariale > 0)
+              _finRow('Part salariale', employe.partSalariale, isDeduction: true),
+            if (employe.salaireMensuel > 0) ...[
+              const Divider(height: 10),
+              _finRow('Net à payer', employe.netAPayer, isBold: true),
+            ],
+            if (employe.partPatronale > 0 || employe.fraisGestion > 0) ...[
+              const Divider(height: 10),
+              if (employe.partPatronale > 0)
+                _finRow('Part patronale', employe.partPatronale),
+              if (employe.fraisGestion > 0)
+                _finRow(
+                  employe.fraisGestionType == 'pct'
+                      ? 'Frais gestion (${employe.fraisGestionPct.toStringAsFixed(0)}%)'
+                      : 'Frais gestion',
+                  employe.fraisGestion,
+                ),
+              const Divider(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(children: [
+                  const Expanded(child: Text('Coût total / mois',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                  Text(Formatters.fcfa(employe.coutTotal),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.g700)),
+                ]),
               ),
-            const Divider(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(children: [
-                const Expanded(child: Text('Coût total / mois',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                Text(Formatters.fcfa(employe.coutTotal),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.g700)),
-              ]),
-            ),
+            ],
           ],
         ]),
       ),
@@ -245,15 +265,29 @@ class _InfoCard extends StatelessWidget {
     ]),
   );
 
-  Widget _finRow(String label, double montant) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(children: [
-      Expanded(child: Text(label,
-          style: const TextStyle(color: AppColors.s500, fontSize: 12))),
-      Text(Formatters.fcfa(montant),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-    ]),
-  );
+  Widget _finRow(String label, double montant,
+      {bool isDeduction = false, bool isBold = false}) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(children: [
+          Expanded(child: Text(label,
+              style: TextStyle(
+                  color: isDeduction ? AppColors.red : AppColors.s500,
+                  fontSize: 12,
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal))),
+          Text(
+            isDeduction
+                ? '- ${Formatters.fcfa(montant)}'
+                : Formatters.fcfa(montant),
+            style: TextStyle(
+                fontSize: isBold ? 13 : 12,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+                color: isDeduction ? AppColors.red
+                    : isBold ? AppColors.g700
+                    : null),
+          ),
+        ]),
+      );
 }
 
 class _AffectationsCard extends StatelessWidget {
@@ -336,6 +370,221 @@ class _AffectationTile extends StatelessWidget {
               onPressed: onTerminer,
             )
           : null,
+    );
+  }
+}
+
+// ── Fiche de paie ──────────────────────────────────────────────────────────────
+
+class _FichePaieCard extends StatefulWidget {
+  final Employe employe;
+  final List<Affectation> affectations;
+  const _FichePaieCard({required this.employe, required this.affectations});
+
+  @override
+  State<_FichePaieCard> createState() => _FichePaieCardState();
+}
+
+class _FichePaieCardState extends State<_FichePaieCard> {
+  bool _busy = false;
+  CompanySettings? _settings;
+  DateTime _period = DateTime(DateTime.now().year, DateTime.now().month);
+
+  static const _moisFr = [
+    '', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    CompanySettingsService.getMySettings().then((s) {
+      if (mounted) setState(() => _settings = s);
+    });
+  }
+
+  Future<void> _withBusy(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try { await action(); } finally { if (mounted) setState(() => _busy = false); }
+  }
+
+  String? get _marketNumero {
+    final active = widget.affectations.where((a) => a.enCours).toList();
+    return active.isNotEmpty ? active.first.marketNumero : null;
+  }
+
+  Future<void> _selectPeriodAndGenerate() async {
+    // Sélecteur mois/année
+    int selectedMonth = _period.month;
+    int selectedYear  = _period.year;
+
+    final now   = DateTime.now();
+    final years = List.generate(5, (i) => now.year - i);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('Sélectionner la période'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int>(
+                value: selectedMonth,
+                decoration: const InputDecoration(labelText: 'Mois'),
+                items: List.generate(12, (i) => DropdownMenuItem(
+                  value: i + 1,
+                  child: Text(_moisFr[i + 1]),
+                )),
+                onChanged: (v) => setSt(() => selectedMonth = v!),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                value: selectedYear,
+                decoration: const InputDecoration(labelText: 'Année'),
+                items: years.map((y) => DropdownMenuItem(
+                  value: y, child: Text(y.toString()),
+                )).toList(),
+                onChanged: (v) => setSt(() => selectedYear = v!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Générer'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    setState(() => _period = DateTime(selectedYear, selectedMonth));
+    await _withBusy(_generateAndShare);
+  }
+
+  Future<void> _generateAndShare() async {
+    try {
+      final bytes = await PdfService.generateFichePaie(
+        widget.employe,
+        _period,
+        settings: _settings,
+        marketNumero: _marketNumero,
+      );
+      if (!mounted) return;
+      final filename =
+          'fiche-paie-${widget.employe.matricule ?? widget.employe.nom}-'
+          '${_period.year}-${_period.month.toString().padLeft(2, '0')}.pdf';
+      await Printing.sharePdf(bytes: bytes, filename: filename);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e'), backgroundColor: AppColors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareWhatsApp() async {
+    await _withBusy(() async {
+      final name = _settings?.companyName.isNotEmpty == true
+          ? _settings!.companyName : 'GesPro';
+      final tel = _settings?.telephone;
+      final msg = 'Bonjour,\n\nVeuillez trouver votre fiche de paie $name.\n\n'
+          '👤 ${widget.employe.nomComplet}\n'
+          '📅 ${_moisFr[_period.month]} ${_period.year}\n'
+          '💰 Net à payer : ${Formatters.fcfa(widget.employe.netAPayer)}\n\n'
+          'Cordialement,\n$name'
+          '${tel != null && tel.isNotEmpty ? '\n📞 $tel' : ''}';
+      final uri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}');
+      if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.platformDefault);
+    });
+  }
+
+  Future<void> _shareEmail() async {
+    await _withBusy(() async {
+      final name    = _settings?.companyName.isNotEmpty == true ? _settings!.companyName : 'GesPro';
+      final subject = Uri.encodeComponent(
+          'Fiche de paie $name – ${_moisFr[_period.month]} ${_period.year}');
+      final body = Uri.encodeComponent(
+          'Bonjour,\n\nVeuillez trouver votre fiche de paie.\n\n'
+          'Employé : ${widget.employe.nomComplet}\n'
+          'Période : ${_moisFr[_period.month]} ${_period.year}\n'
+          'Net à payer : ${Formatters.fcfa(widget.employe.netAPayer)}\n\n'
+          'Cordialement,\n$name');
+      final uri = Uri.parse('mailto:?subject=$subject&body=$body');
+      if (await canLaunchUrl(uri)) await launchUrl(uri);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            Icon(Icons.receipt_outlined, size: 16, color: AppColors.g700),
+            SizedBox(width: 6),
+            Text('Fiche de paie',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
+                    color: AppColors.g700)),
+          ]),
+          const SizedBox(height: 12),
+          // Bouton principal
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.g700,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: _busy ? null : _selectPeriodAndGenerate,
+              icon: _busy
+                  ? const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+              label: Text(_busy ? 'Génération...' : 'Générer la fiche de paie'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Partage rapide
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : _shareWhatsApp,
+                icon: const Icon(Icons.chat_outlined, size: 16),
+                label: const Text('WhatsApp', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF25D366),
+                  side: const BorderSide(color: Color(0xFF25D366)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : _shareEmail,
+                icon: const Icon(Icons.email_outlined, size: 16),
+                label: const Text('Email', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(foregroundColor: AppColors.g600),
+              ),
+            ),
+          ]),
+          if (!kIsWeb)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'PDF : ${_moisFr[_period.month]} ${_period.year}',
+                style: const TextStyle(fontSize: 10, color: AppColors.s400),
+              ),
+            ),
+        ]),
+      ),
     );
   }
 }
