@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/formatters.dart';
 import '../../models/employe.dart';
 import '../../services/employe_service.dart';
 
@@ -18,40 +19,70 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
   bool _init = true;
+  bool _loadingMatricule = false;
 
-  final _nomCtrl     = TextEditingController();
-  final _prenomCtrl  = TextEditingController();
-  final _posteCtrl   = TextEditingController();
-  final _telCtrl     = TextEditingController();
-  final _salaireCtrl = TextEditingController();
-  final _notesCtrl   = TextEditingController();
+  final _matriculeCtrl     = TextEditingController();
+  final _nomCtrl           = TextEditingController();
+  final _prenomCtrl        = TextEditingController();
+  final _posteCtrl         = TextEditingController();
+  final _telCtrl           = TextEditingController();
+  final _salaireCtrl       = TextEditingController();
+  final _partPatronaleCtrl = TextEditingController();
+  final _fraisGestionCtrl  = TextEditingController();
+  final _notesCtrl         = TextEditingController();
 
   DateTime? _dateEmbauche;
   EmployeStatut _statut = EmployeStatut.actif;
+  String _fraisGestionType = 'montant'; // 'montant' | 'pct'
   Employe? _existing;
 
   bool get _isEdit => widget.employeId != null;
 
+  double get _brut        => double.tryParse(_salaireCtrl.text.replaceAll(' ', '')) ?? 0;
+  double get _patronale   => double.tryParse(_partPatronaleCtrl.text.replaceAll(' ', '')) ?? 0;
+  double get _fraisValeur => double.tryParse(_fraisGestionCtrl.text.replaceAll(' ', '')) ?? 0;
+  double get _frais       => _fraisGestionType == 'pct' ? _brut * _fraisValeur / 100 : _fraisValeur;
+  double get _coutTotal   => _brut + _patronale + _frais;
+
   @override
   void initState() {
     super.initState();
-    if (_isEdit) _loadExisting();
-    else setState(() => _init = false);
+    if (_isEdit) {
+      _loadExisting();
+    } else {
+      _generateMatricule();
+    }
+  }
+
+  Future<void> _generateMatricule() async {
+    setState(() => _loadingMatricule = true);
+    try {
+      final m = await EmployeService().generateMatricule();
+      if (mounted) _matriculeCtrl.text = m;
+    } finally {
+      if (mounted) setState(() { _loadingMatricule = false; _init = false; });
+    }
   }
 
   Future<void> _loadExisting() async {
     final e = await EmployeService().getById(widget.employeId!);
     if (e != null && mounted) {
       setState(() {
-        _existing      = e;
-        _nomCtrl.text   = e.nom;
-        _prenomCtrl.text = e.prenom ?? '';
-        _posteCtrl.text  = e.poste ?? '';
-        _telCtrl.text    = e.telephone ?? '';
-        _salaireCtrl.text = e.salaireMensuel.round().toString();
-        _notesCtrl.text  = e.notes ?? '';
-        _dateEmbauche    = e.dateEmbauche;
-        _statut          = e.statut;
+        _existing              = e;
+        _matriculeCtrl.text    = e.matricule ?? '';
+        _nomCtrl.text          = e.nom;
+        _prenomCtrl.text       = e.prenom ?? '';
+        _posteCtrl.text        = e.poste ?? '';
+        _telCtrl.text          = e.telephone ?? '';
+        _salaireCtrl.text      = e.salaireMensuel.round().toString();
+        _partPatronaleCtrl.text= e.partPatronale.round().toString();
+        _fraisGestionType      = e.fraisGestionType;
+        _fraisGestionCtrl.text = _fraisGestionType == 'pct'
+            ? e.fraisGestionPct.toString()
+            : e.fraisGestionMontant.round().toString();
+        _notesCtrl.text        = e.notes ?? '';
+        _dateEmbauche          = e.dateEmbauche;
+        _statut                = e.statut;
         _init = false;
       });
     }
@@ -72,16 +103,21 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
     setState(() => _loading = true);
     try {
       final employe = Employe(
-        id:             _existing?.id ?? '',
-        nom:            _nomCtrl.text.trim(),
-        prenom:         _prenomCtrl.text.trim().isEmpty ? null : _prenomCtrl.text.trim(),
-        poste:          _posteCtrl.text.trim().isEmpty ? null : _posteCtrl.text.trim(),
-        telephone:      _telCtrl.text.trim().isEmpty ? null : _telCtrl.text.trim(),
-        salaireMensuel: double.tryParse(_salaireCtrl.text.replaceAll(' ', '')) ?? 0,
-        dateEmbauche:   _dateEmbauche,
-        statut:         _statut,
-        notes:          _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-        createdAt:      _existing?.createdAt ?? DateTime.now(),
+        id:                   _existing?.id ?? '',
+        matricule:            _matriculeCtrl.text.trim().isEmpty ? null : _matriculeCtrl.text.trim(),
+        nom:                  _nomCtrl.text.trim(),
+        prenom:               _prenomCtrl.text.trim().isEmpty ? null : _prenomCtrl.text.trim(),
+        poste:                _posteCtrl.text.trim().isEmpty ? null : _posteCtrl.text.trim(),
+        telephone:            _telCtrl.text.trim().isEmpty ? null : _telCtrl.text.trim(),
+        salaireMensuel:       _brut,
+        partPatronale:        _patronale,
+        fraisGestionType:     _fraisGestionType,
+        fraisGestionMontant:  _fraisGestionType == 'montant' ? _fraisValeur : 0,
+        fraisGestionPct:      _fraisGestionType == 'pct' ? _fraisValeur : 0,
+        dateEmbauche:         _dateEmbauche,
+        statut:               _statut,
+        notes:                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        createdAt:            _existing?.createdAt ?? DateTime.now(),
       );
 
       if (_isEdit) {
@@ -103,8 +139,9 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
 
   @override
   void dispose() {
-    _nomCtrl.dispose(); _prenomCtrl.dispose(); _posteCtrl.dispose();
-    _telCtrl.dispose(); _salaireCtrl.dispose(); _notesCtrl.dispose();
+    _matriculeCtrl.dispose(); _nomCtrl.dispose(); _prenomCtrl.dispose();
+    _posteCtrl.dispose(); _telCtrl.dispose(); _salaireCtrl.dispose();
+    _partPatronaleCtrl.dispose(); _fraisGestionCtrl.dispose(); _notesCtrl.dispose();
     super.dispose();
   }
 
@@ -126,6 +163,40 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+
+                    // ── Matricule ─────────────────────────────────────────
+                    _section('Matricule', Icons.badge_outlined),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _matriculeCtrl,
+                          decoration: _deco('Numéro de matricule',
+                              hint: 'Ex: D2S-2026-001',
+                              prefixIcon: Icons.tag_outlined),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Tooltip(
+                        message: 'Regénérer',
+                        child: IconButton(
+                          icon: _loadingMatricule
+                              ? const SizedBox(width: 20, height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.refresh, color: AppColors.g600),
+                          onPressed: _loadingMatricule ? null : () async {
+                            setState(() => _loadingMatricule = true);
+                            final m = await EmployeService().generateMatricule();
+                            if (mounted) setState(() {
+                              _matriculeCtrl.text = m;
+                              _loadingMatricule = false;
+                            });
+                          },
+                        ),
+                      ),
+                    ]),
+
+                    const SizedBox(height: 20),
                     // ── Identité ─────────────────────────────────────────
                     _section('Identité', Icons.person_outline),
                     const SizedBox(height: 12),
@@ -142,16 +213,94 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
 
                     const SizedBox(height: 20),
                     // ── Contrat ──────────────────────────────────────────
-                    _section('Contrat', Icons.work_outline),
+                    _section('Contrat & Rémunération', Icons.work_outline),
                     const SizedBox(height: 12),
+
+                    // Salaire brut
                     TextFormField(
                       controller: _salaireCtrl,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-                      decoration: _deco('Salaire mensuel (FCFA) *', prefixIcon: Icons.payments_outlined),
+                      onChanged: (_) => setState(() {}),
+                      decoration: _deco('Salaire brut (FCFA) *', prefixIcon: Icons.payments_outlined),
                     ),
                     const SizedBox(height: 12),
+
+                    // Part patronale
+                    TextFormField(
+                      controller: _partPatronaleCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => setState(() {}),
+                      decoration: _deco('Part patronale (FCFA)', prefixIcon: Icons.account_balance_outlined),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Frais de gestion
+                    _section('Frais de gestion', Icons.percent_outlined),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      ToggleButtons(
+                        isSelected: [_fraisGestionType == 'montant', _fraisGestionType == 'pct'],
+                        onPressed: (i) => setState(() {
+                          _fraisGestionType = i == 0 ? 'montant' : 'pct';
+                          _fraisGestionCtrl.clear();
+                        }),
+                        borderRadius: BorderRadius.circular(8),
+                        selectedColor: Colors.white,
+                        fillColor: AppColors.g600,
+                        constraints: const BoxConstraints(minWidth: 110, minHeight: 40),
+                        children: const [
+                          Text('Montant fixe', style: TextStyle(fontSize: 13)),
+                          Text('Pourcentage', style: TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _fraisGestionCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                      onChanged: (_) => setState(() {}),
+                      decoration: _deco(
+                        _fraisGestionType == 'pct'
+                            ? 'Pourcentage (%)'
+                            : 'Montant fixe (FCFA)',
+                        prefixIcon: _fraisGestionType == 'pct'
+                            ? Icons.percent
+                            : Icons.payments_outlined,
+                        hint: _fraisGestionType == 'pct' ? 'Ex: 10' : 'Ex: 15000',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Coût total (calculé)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.g50,
+                        border: Border.all(color: AppColors.g100),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Coût total / mois',
+                              style: TextStyle(fontSize: 13, color: AppColors.s500)),
+                          Text(
+                            Formatters.fcfa(_coutTotal),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.g700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
                     // Date embauche
                     InkWell(
                       onTap: _pickDate,
@@ -169,6 +318,7 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+
                     // Statut
                     DropdownButtonFormField<EmployeStatut>(
                       value: _statut,

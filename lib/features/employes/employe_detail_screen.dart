@@ -192,23 +192,62 @@ class _InfoCard extends StatelessWidget {
             ),
           ]),
           const Divider(height: 20),
-          _row('Salaire mensuel', Formatters.fcfa(employe.salaireMensuel)),
-          if (employe.telephone != null) _row('Téléphone', employe.telephone!),
+          if (employe.matricule != null)
+            _row('Matricule', employe.matricule!, icon: Icons.badge_outlined),
+          if (employe.telephone != null)
+            _row('Téléphone', employe.telephone!, icon: Icons.phone_outlined),
           if (employe.dateEmbauche != null)
-            _row('Date d\'embauche', DateFormat('dd/MM/yyyy').format(employe.dateEmbauche!)),
-          if (employe.notes != null) _row('Notes', employe.notes!),
+            _row('Date d\'embauche', DateFormat('dd/MM/yyyy').format(employe.dateEmbauche!),
+                icon: Icons.calendar_today_outlined),
+          if (employe.notes != null)
+            _row('Notes', employe.notes!, icon: Icons.notes_outlined),
+          const Divider(height: 20),
+          // ── Tableau financier ──
+          _finRow('Salaire brut', employe.salaireMensuel),
+          _finRow('Part patronale', employe.partPatronale),
+          _finRow(
+            employe.fraisGestionType == 'pct'
+                ? 'Frais gestion (${employe.fraisGestionPct.toStringAsFixed(0)}%)'
+                : 'Frais gestion',
+            employe.fraisGestion,
+          ),
+          const Divider(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(children: [
+              const Expanded(child: Text('Coût total / mois',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+              Text(Formatters.fcfa(employe.coutTotal),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.g700)),
+            ]),
+          ),
         ]),
       ),
     );
   }
 
-  Widget _row(String label, String value) => Padding(
+  Widget _row(String label, String value, {IconData? icon}) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(children: [
-      SizedBox(width: 120, child: Text(label,
+      if (icon != null) ...[
+        Icon(icon, size: 14, color: AppColors.s400),
+        const SizedBox(width: 6),
+      ],
+      SizedBox(width: 110, child: Text(label,
           style: const TextStyle(color: AppColors.s400, fontSize: 12))),
       Expanded(child: Text(value,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+    ]),
+  );
+
+  Widget _finRow(String label, double montant) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(children: [
+      Expanded(child: Text(label,
+          style: const TextStyle(color: AppColors.s500, fontSize: 12))),
+      Text(Formatters.fcfa(montant),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
     ]),
   );
 }

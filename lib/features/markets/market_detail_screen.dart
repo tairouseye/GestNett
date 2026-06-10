@@ -67,7 +67,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
   double get _totalDepenses => _expenses.fold(0.0, (s, e) => s + e.montant);
   double get _masseSalariale => _affectations
       .where((a) => a.enCours)
-      .fold(0.0, (s, a) => s + (a.salaireMensuel ?? 0));
+      .fold(0.0, (s, a) => s + a.coutTotal);
   double get _benefice => _totalFacture - _totalDepenses;
 
   @override
@@ -509,9 +509,16 @@ class _PersonnelSection extends StatelessWidget {
                   ),
                   title: Text(a.employeNom ?? 'Employé',
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                  trailing: Text(
-                    a.salaireMensuel != null ? Formatters.fcfa(a.salaireMensuel!) : '',
-                    style: const TextStyle(fontSize: 12, color: AppColors.s500),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(Formatters.fcfa(a.coutTotal),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.s500)),
+                      if (a.salaireMensuel != null)
+                        Text('brut: ${Formatters.fcfa(a.salaireMensuel!)}',
+                            style: const TextStyle(fontSize: 10, color: AppColors.s400)),
+                    ],
                   ),
                 )),
                 ListTile(

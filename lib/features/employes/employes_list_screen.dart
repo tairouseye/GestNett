@@ -29,9 +29,9 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
     if (mounted) setState(() { _employes = list; _loading = false; });
   }
 
-  double get _masseSalariale =>
+  double get _coutTotalMensuel =>
       _employes.where((e) => e.statut == EmployeStatut.actif)
-               .fold(0.0, (s, e) => s + e.salaireMensuel);
+               .fold(0.0, (s, e) => s + e.coutTotal);
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +63,7 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
                 children: [
                   // ── KPI masse salariale ──────────────────────────────
                   _MasseSalarialeCard(
-                    total: _masseSalariale,
+                    total: _coutTotalMensuel,
                     nbActifs: actifs.length,
                     nbTotal: _employes.length,
                   ),
@@ -131,7 +131,7 @@ class _MasseSalarialeCard extends StatelessWidget {
         ),
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Masse salariale mensuelle', style: TextStyle(color: AppColors.s400, fontSize: 12)),
+          const Text('Coût total mensuel', style: TextStyle(color: AppColors.s400, fontSize: 12)),
           const SizedBox(height: 2),
           Text(Formatters.fcfa(total),
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.g700)),
@@ -178,13 +178,21 @@ class _EmployeCard extends StatelessWidget {
         ),
         title: Text(employe.nomComplet,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        subtitle: Text(employe.poste ?? 'Poste non défini',
-            style: const TextStyle(fontSize: 12, color: AppColors.s400)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(employe.poste ?? 'Poste non défini',
+                style: const TextStyle(fontSize: 12, color: AppColors.s400)),
+            if (employe.matricule != null)
+              Text(employe.matricule!,
+                  style: const TextStyle(fontSize: 10, color: AppColors.s300)),
+          ],
+        ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(Formatters.fcfa(employe.salaireMensuel),
+            Text(Formatters.fcfa(employe.coutTotal),
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,

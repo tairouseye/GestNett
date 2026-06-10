@@ -1,5 +1,7 @@
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/employe.dart';
+import 'company_settings_service.dart';
 
 class EmployeService {
   final _db      = Supabase.instance.client;
@@ -38,10 +40,14 @@ class EmployeService {
   }
 
   Future<Employe> create(Employe employe) async {
+    final matricule = (employe.matricule?.isNotEmpty == true)
+        ? employe.matricule!
+        : await generateMatricule();
     final data = await _db
         .from('employes')
         .insert({
           ...employe.toInsertMap(),
+          'matricule':  matricule,
           'created_by': _uid,
           'created_at': DateTime.now().toIso8601String(),
         })
@@ -55,29 +61,46 @@ class EmployeService {
         .from('employes')
         .update(employe.toInsertMap())
         .eq('id', id)
+        .eq('created_by', _uid)
         .select()
         .single();
     return Employe.fromMap(data);
   }
 
   Future<void> delete(String id) async {
-    await _db.from('employes').delete().eq('id', id);
+    await _db.from('employes').delete().eq('id', id).eq('created_by', _uid);
+  }
+
+  /// Génère un matricule unique : [CODE_ENTREPRISE]-[ANNÉE]-[SEQ]
+  Future<String> generateMatricule() async {
+    final settings = await CompanySettingsService.getMySettings();
+    final raw = settings?.companyName ?? 'EMP';
+    final code = raw
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]'), '')
+        .substring(0, min(3, raw.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').length));
+    final year = DateTime.now().year;
+    final res  = await _db
+        .from('employes')
+        .select('id')
+        .eq('created_by', _uid)
+        .count();
+    final seq  = (res.count + 1).toString().padLeft(3, '0');
+    return '$code-$year-$seq';
   }
 
   // ── Affectations ──────────────────────────────────────────────────────────
 
-  /// Affectations d'un marché (avec nom de l'employé)
   Future<List<Affectation>> getByMarket(String marketId) async {
     final data = await _db
         .from('affectations')
-        .select('*, employes(nom, prenom, salaire_mensuel)')
+        .select('*, employes(nom, prenom, salaire_mensuel, part_patronale, frais_gestion_type, frais_gestion_montant, frais_gestion_pct)')
         .eq('market_id', marketId)
         .eq('created_by', _uid)
         .order('date_debut');
     return (data as List).map((m) => Affectation.fromMap(m)).toList();
   }
 
-  /// Affectations d'un employé (avec numéro du marché)
   Future<List<Affectation>> getByEmploye(String employeId) async {
     final data = await _db
         .from('affectations')
@@ -102,7 +125,7 @@ class EmployeService {
           'created_by': _uid,
           'created_at': DateTime.now().toIso8601String(),
         })
-        .select('*, employes(nom, prenom), markets(numero)')
+        .select('*, employes(nom, prenom, salaire_mensuel, part_patronale, frais_gestion_type, frais_gestion_montant, frais_gestion_pct), markets(numero)')
         .single();
     return Affectation.fromMap(data);
   }
@@ -118,18 +141,11 @@ class EmployeService {
     await _db.from('affectations').delete().eq('id', affectationId);
   }
 
-  /// Coût salarial mensuel total d'un marché (employés actifs)
+  /// Coût total mensuel d'un marché (brut + patronale + frais pour chaque employé actif)
   Future<double> coutSalarialMarket(String marketId) async {
-    final data = await _db
-        .from('affectations')
-        .select('employes(salaire_mensuel)')
-        .eq('market_id', marketId)
-        .eq('created_by', _uid)
-        .isFilter('date_fin', null);
-
-    return (data as List).fold<double>(0, (sum, row) {
-      final emp = row['employes'] as Map<String, dynamic>?;
-      return sum + ((emp?['salaire_mensuel'] as num?)?.toDouble() ?? 0);
-    });
+    final affectations = await getByMarket(marketId);
+    return affectations
+        .where((a) => a.enCours)
+        .fold<double>(0, (sum, a) => sum + a.coutTotal);
   }
 }
