@@ -48,29 +48,6 @@ class _AppShellState extends State<AppShell> {
 
   void _onActivity() => InactivityService.instance.onUserActivity();
 
-  Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Se déconnecter ?'),
-        content: const Text('Vous allez être déconnecté de GesPro.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Déconnecter',
-                style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) await _forceLogout();
-  }
-
   static const _tabs = [
     _TabItem(icon: Icons.dashboard_outlined,    activeIcon: Icons.dashboard,      label: AppStrings.dashboard, path: '/'),
     _TabItem(icon: Icons.handshake_outlined,    activeIcon: Icons.handshake,      label: AppStrings.markets,   path: '/markets'),

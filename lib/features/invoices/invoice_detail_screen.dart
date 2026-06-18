@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
@@ -70,9 +69,13 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                 await InvoiceService().updateStatut(_invoice!.id, s);
                 if (mounted) await _load();
               },
-              itemBuilder: (_) => InvoiceStatut.values
-                  .map((s) => PopupMenuItem(value: s, child: Text(s.label)))
-                  .toList(),
+              // « Soldée » et « Acompte » découlent des paiements enregistrés :
+              // ils ne sont pas modifiables manuellement.
+              itemBuilder: (_) => const [
+                InvoiceStatut.brouillon,
+                InvoiceStatut.emise,
+                InvoiceStatut.annulee,
+              ].map((s) => PopupMenuItem(value: s, child: Text(s.label))).toList(),
             ),
         ],
       ),

@@ -55,15 +55,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     'Gambie':         ['Banjul', 'Serekunda', 'Brikama', 'Bakau', 'Farafenni', 'Lamin'],
   };
 
-  static const Map<String, String> _indicatifs = {
-    'Sénégal':        '(+221)',
-    'Mali':           '(+223)',
-    'Côte d\'Ivoire': '(+225)',
-    'Burkina Faso':   '(+226)',
-    'Guinée Conakry': '(+224)',
-    'Mauritanie':     '(+222)',
-    'Gambie':         '(+220)',
-  };
 
   @override
   void initState() {

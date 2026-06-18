@@ -316,7 +316,6 @@ class _StepClientState extends State<_StepClient> {
   late final TextEditingController _dateCtrl;
   List<dynamic> _clients = [];
   List<dynamic> _markets = [];
-  String? _errorClients;
   String get _uid => Supabase.instance.client.auth.currentUser!.id;
 
   @override
@@ -337,7 +336,7 @@ class _StepClientState extends State<_StepClient> {
           .order('nom');
       if (mounted) setState(() => _clients = clients as List);
     } catch (e) {
-      if (mounted) setState(() => _errorClients = 'Erreur chargement clients');
+      if (mounted) setState(() => _clients = []);
     }
   }
 
@@ -360,7 +359,7 @@ class _StepClientState extends State<_StepClient> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _errorClients = 'Erreur chargement marchés');
+      if (mounted) setState(() => _markets = []);
     }
   }
 
@@ -1265,8 +1264,6 @@ class _StepFinishState extends State<_StepFinish> {
     _generate();
   }
 
-  String? _savedInvoiceId;
-
   Future<void> _generate() async {
     setState(() { _generating = true; _error = null; });
     try {
@@ -1301,7 +1298,6 @@ class _StepFinishState extends State<_StepFinish> {
       typeFacture:  d.typeFacture,
       createdAt:    DateTime.now(),
     ));
-    _savedInvoiceId = invoice.id;
     if (mounted) setState(() => widget.data.numero = invoice.numero);
   }
 

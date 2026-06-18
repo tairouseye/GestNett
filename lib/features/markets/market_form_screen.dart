@@ -26,7 +26,6 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
   MarketStatut _statut = MarketStatut.enAttente;
   bool _loading = false;
   bool _loadingClients = true;
-  Market? _existing;
 
   bool get _isEdit => widget.marketId != null;
 
@@ -55,7 +54,6 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
     final m = await MarketService().getById(widget.marketId!);
     if (m != null && mounted) {
       setState(() {
-        _existing          = m;
         _selectedClientId  = m.clientId;
         _descCtrl.text     = m.description ?? '';
         _montantCtrl.text  = m.montantTotal.round().toString();
