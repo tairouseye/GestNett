@@ -203,6 +203,8 @@ class _InfoCard extends StatelessWidget {
             ),
           ]),
           const Divider(height: 20),
+          if (employe.categorie != null)
+            _row('Catégorie', employe.categorie!.label, icon: Icons.groups_outlined),
           if (employe.matricule != null)
             _row('Matricule', employe.matricule!, icon: Icons.badge_outlined),
           if (employe.telephone != null)

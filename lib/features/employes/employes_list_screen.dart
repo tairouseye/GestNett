@@ -16,6 +16,7 @@ class EmployesListScreen extends StatefulWidget {
 class _EmployesListScreenState extends State<EmployesListScreen> {
   List<Employe> _employes = [];
   bool _loading = true;
+  EmployeCategorie? _filtre; // null = tous
 
   @override
   void initState() {
@@ -35,8 +36,11 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final actifs   = _employes.where((e) => e.statut == EmployeStatut.actif).toList();
-    final inactifs = _employes.where((e) => e.statut == EmployeStatut.inactif).toList();
+    final filtered = _employes
+        .where((e) => _filtre == null || e.categorie == _filtre)
+        .toList();
+    final actifs   = filtered.where((e) => e.statut == EmployeStatut.actif).toList();
+    final inactifs = filtered.where((e) => e.statut == EmployeStatut.inactif).toList();
 
     return Scaffold(
       backgroundColor: AppColors.g50,
@@ -64,10 +68,34 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
                   // ── KPI masse salariale ──────────────────────────────
                   _MasseSalarialeCard(
                     total: _coutTotalMensuel,
-                    nbActifs: actifs.length,
+                    nbActifs: _employes.where((e) => e.statut == EmployeStatut.actif).length,
                     nbTotal: _employes.length,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+
+                  // ── Filtre par catégorie ─────────────────────────────
+                  if (_employes.isNotEmpty)
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        _FilterChip(
+                          label: 'Tous',
+                          selected: _filtre == null,
+                          onTap: () => setState(() => _filtre = null),
+                        ),
+                        _FilterChip(
+                          label: '🧭 Supervision',
+                          selected: _filtre == EmployeCategorie.supervision,
+                          onTap: () => setState(() => _filtre = EmployeCategorie.supervision),
+                        ),
+                        _FilterChip(
+                          label: '🛠️ Terrain',
+                          selected: _filtre == EmployeCategorie.terrain,
+                          onTap: () => setState(() => _filtre = EmployeCategorie.terrain),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 12),
 
                   if (_employes.isEmpty)
                     Center(
@@ -144,6 +172,47 @@ class _MasseSalarialeCard extends StatelessWidget {
   );
 }
 
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _FilterChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => ChoiceChip(
+    label: Text(label, style: const TextStyle(fontSize: 12)),
+    selected: selected,
+    onSelected: (_) => onTap(),
+    selectedColor: AppColors.g600,
+    labelStyle: TextStyle(color: selected ? Colors.white : AppColors.s500),
+    backgroundColor: AppColors.white,
+    side: BorderSide(color: selected ? AppColors.g600 : AppColors.s100),
+  );
+}
+
+/// Petit badge coloré pour la catégorie d'un employé.
+class CategorieBadge extends StatelessWidget {
+  final EmployeCategorie categorie;
+  const CategorieBadge({super.key, required this.categorie});
+
+  @override
+  Widget build(BuildContext context) {
+    final sup = categorie == EmployeCategorie.supervision;
+    final color = sup ? AppColors.blue : AppColors.g600;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        sup ? 'Supervision' : 'Terrain',
+        style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: color),
+      ),
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   final String text;
   const _SectionLabel(this.text);
@@ -177,8 +246,15 @@ class _EmployeCard extends StatelessWidget {
             ),
           ),
         ),
-        title: Text(employe.nomComplet,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(employe.nomComplet,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            ),
+            if (employe.categorie != null) CategorieBadge(categorie: employe.categorie!),
+          ],
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

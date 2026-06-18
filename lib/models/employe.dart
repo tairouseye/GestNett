@@ -1,5 +1,54 @@
 enum EmployeStatut { actif, inactif }
 
+enum EmployeCategorie { supervision, terrain }
+
+extension EmployeCategorieExt on EmployeCategorie {
+  String get value => switch (this) {
+    EmployeCategorie.supervision => 'supervision',
+    EmployeCategorie.terrain     => 'terrain',
+  };
+  String get label => switch (this) {
+    EmployeCategorie.supervision => 'Supervision',
+    EmployeCategorie.terrain     => 'Terrain',
+  };
+  static EmployeCategorie? fromValue(String? v) => switch (v) {
+    'supervision' => EmployeCategorie.supervision,
+    'terrain'     => EmployeCategorie.terrain,
+    _             => null,
+  };
+}
+
+/// Métiers suggérés par catégorie (le champ reste libre via "Autre…").
+class EmployeMetiers {
+  static const supervision = [
+    'Chef d\'équipe',
+    'Superviseur',
+    'Coordinateur',
+    'Responsable / Manager',
+    'Administratif',
+  ];
+  static const terrain = [
+    'Nounou / Garde d\'enfants',
+    'Cuisinière / Cuisinier',
+    'Chauffeur',
+    'Gardien',
+    'Agent d\'entretien / Femme de ménage',
+    'Jardinier',
+    'Linger / Repassage',
+    'Agent de sécurité',
+    'Aide-ménagère',
+    'Aide aux personnes âgées',
+  ];
+
+  static const all = [...supervision, ...terrain];
+
+  static List<String> forCategorie(EmployeCategorie? c) => switch (c) {
+    EmployeCategorie.supervision => supervision,
+    EmployeCategorie.terrain     => terrain,
+    null                         => [...supervision, ...terrain],
+  };
+}
+
 extension EmployeStatutExt on EmployeStatut {
   String get value => switch (this) {
     EmployeStatut.actif   => 'actif',
@@ -18,6 +67,7 @@ class Employe {
   final String nom;
   final String? prenom;
   final String? poste;
+  final EmployeCategorie? categorie;
   final String? telephone;
   final double salaireMensuel;   // = salaire brut
   final double partSalariale;
@@ -36,6 +86,7 @@ class Employe {
     required this.nom,
     this.prenom,
     this.poste,
+    this.categorie,
     this.telephone,
     this.salaireMensuel = 0,
     this.partSalariale = 0,
@@ -64,6 +115,7 @@ class Employe {
         nom:                  m['nom'] as String,
         prenom:               m['prenom'] as String?,
         poste:                m['poste'] as String?,
+        categorie:            EmployeCategorieExt.fromValue(m['categorie'] as String?),
         telephone:            m['telephone'] as String?,
         salaireMensuel:       (m['salaire_mensuel'] as num?)?.toDouble() ?? 0,
         partSalariale:        (m['part_salariale'] as num?)?.toDouble() ?? 0,
@@ -84,6 +136,7 @@ class Employe {
         'nom':                   nom,
         if (prenom != null)      'prenom':               prenom,
         if (poste != null)       'poste':                poste,
+        'categorie':             categorie?.value,
         if (telephone != null)   'telephone':            telephone,
         'salaire_mensuel':       salaireMensuel.round(),
         'part_salariale':        partSalariale.round(),

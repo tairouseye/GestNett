@@ -37,6 +37,11 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   String _fraisGestionType = 'montant'; // 'montant' | 'pct'
   Employe? _existing;
 
+  EmployeCategorie? _categorie;
+  String? _metierSel;          // métier choisi dans la liste, ou '__autre__'
+  bool _metierAutre = false;   // true => saisie libre dans _posteCtrl
+  static const _autre = 'Autre…';
+
   bool get _isEdit => widget.employeId != null;
 
   double get _brut         => double.tryParse(_salaireCtrl.text.replaceAll(' ', '')) ?? 0;
@@ -76,6 +81,16 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         _nomCtrl.text          = e.nom;
         _prenomCtrl.text       = e.prenom ?? '';
         _posteCtrl.text        = e.poste ?? '';
+        _categorie             = e.categorie;
+        if (e.poste != null && e.poste!.isNotEmpty) {
+          if (EmployeMetiers.all.contains(e.poste)) {
+            _metierSel = e.poste;
+            _metierAutre = false;
+          } else {
+            _metierSel = _autre;
+            _metierAutre = true;
+          }
+        }
         _telCtrl.text          = e.telephone ?? '';
         _salaireCtrl.text       = e.salaireMensuel.round().toString();
         _partSalarialeCtrl.text = e.partSalariale.round().toString();
@@ -213,7 +228,66 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                           validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null)),
                     ]),
                     const SizedBox(height: 12),
-                    _field(_posteCtrl, 'Poste / Fonction', hint: 'Ex: Agent de nettoyage, Chef équipe...'),
+
+                    // Catégorie : supervision / terrain
+                    DropdownButtonFormField<EmployeCategorie?>(
+                      value: _categorie,
+                      decoration: _deco('Catégorie', prefixIcon: Icons.groups_outlined),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Non précisée')),
+                        ...EmployeCategorie.values.map((c) => DropdownMenuItem(
+                              value: c,
+                              child: Text(c == EmployeCategorie.supervision
+                                  ? '🧭 Supervision'
+                                  : '🛠️ Terrain'),
+                            )),
+                      ],
+                      onChanged: (v) => setState(() {
+                        _categorie = v;
+                        // Réinitialise le métier si plus cohérent avec la catégorie
+                        final base = EmployeMetiers.forCategorie(v);
+                        if (_metierSel != null &&
+                            _metierSel != _autre &&
+                            !base.contains(_metierSel)) {
+                          _metierSel = null;
+                          _metierAutre = false;
+                          _posteCtrl.clear();
+                        }
+                      }),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Métier (liste suggérée selon la catégorie + Autre…)
+                    Builder(builder: (_) {
+                      final base = EmployeMetiers.forCategorie(_categorie);
+                      final items = <String>{
+                        ...base,
+                        if (_metierSel != null && _metierSel != _autre) _metierSel!,
+                        _autre,
+                      }.toList();
+                      return DropdownButtonFormField<String>(
+                        value: _metierSel,
+                        isExpanded: true,
+                        decoration: _deco('Métier / Fonction', prefixIcon: Icons.work_outline),
+                        items: items
+                            .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                            .toList(),
+                        onChanged: (v) => setState(() {
+                          _metierSel = v;
+                          if (v == _autre) {
+                            _metierAutre = true;
+                            _posteCtrl.clear();
+                          } else {
+                            _metierAutre = false;
+                            _posteCtrl.text = v ?? '';
+                          }
+                        }),
+                      );
+                    }),
+                    if (_metierAutre) ...[
+                      const SizedBox(height: 12),
+                      _field(_posteCtrl, 'Préciser le métier', hint: 'Ex: Plombier, Électricien...'),
+                    ],
                     const SizedBox(height: 12),
                     _field(_telCtrl, 'Téléphone', keyboard: TextInputType.phone),
 
