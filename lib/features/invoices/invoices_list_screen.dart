@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/logout_button.dart';
+import '../../core/widgets/search_field.dart';
 import '../../models/invoice.dart';
 import '../../services/invoice_service.dart';
 
@@ -38,9 +39,18 @@ class _InvoicesListScreenState extends State<InvoicesListScreen>
     if (mounted) setState(() => _loading = false);
   }
 
-  List<Invoice> get _all        => _invoices;
-  List<Invoice> get _proformas  => _invoices.where((i) => i.isProforma).toList();
-  List<Invoice> get _definitives => _invoices.where((i) => !i.isProforma).toList();
+  String _query = '';
+
+  bool _match(Invoice i) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase();
+    return (i.clientNom ?? '').toLowerCase().contains(q) ||
+        i.numero.toLowerCase().contains(q);
+  }
+
+  List<Invoice> get _all        => _invoices.where(_match).toList();
+  List<Invoice> get _proformas  => _all.where((i) => i.isProforma).toList();
+  List<Invoice> get _definitives => _all.where((i) => !i.isProforma).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -66,12 +76,22 @@ class _InvoicesListScreenState extends State<InvoicesListScreen>
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabCtrl,
+          : Column(
               children: [
-                _InvoiceList(invoices: _all,         onRefresh: _load),
-                _InvoiceList(invoices: _proformas,   onRefresh: _load),
-                _InvoiceList(invoices: _definitives, onRefresh: _load),
+                SearchField(
+                  hint: 'Rechercher (client, n° facture)',
+                  onChanged: (v) => setState(() => _query = v),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabCtrl,
+                    children: [
+                      _InvoiceList(invoices: _all,         onRefresh: _load),
+                      _InvoiceList(invoices: _proformas,   onRefresh: _load),
+                      _InvoiceList(invoices: _definitives, onRefresh: _load),
+                    ],
+                  ),
+                ),
               ],
             ),
     );

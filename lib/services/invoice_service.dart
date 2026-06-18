@@ -1,6 +1,17 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/invoice.dart';
 import '../models/payment.dart';
+import 'payment_service.dart';
+
+/// Facture impayée avec son montant déjà encaissé et le reste dû.
+class UnpaidInvoice {
+  final Invoice invoice;
+  final double paid;
+  final double restant;
+  const UnpaidInvoice({required this.invoice, required this.paid, required this.restant});
+
+  int get joursRetard => DateTime.now().difference(invoice.date).inDays;
+}
 
 class InvoiceService {
   final _supabase = Supabase.instance.client;
@@ -102,6 +113,30 @@ class InvoiceService {
   Future<double> getTotalPaid(String invoiceId) async {
     final payments = await getPayments(invoiceId);
     return payments.fold<double>(0.0, (sum, p) => sum + p.montant);
+  }
+
+  /// Factures définitives non soldées (émises ou acompte), avec reste dû > 0,
+  /// triées de la plus ancienne à la plus récente.
+  Future<List<UnpaidInvoice>> getUnpaid() async {
+    final data = await _supabase
+        .from('invoices')
+        .select('*, clients(nom, telephone), markets(numero)')
+        .eq('created_by', _uid)
+        .eq('type_facture', 'definitive')
+        .inFilter('statut', ['emise', 'payee_partiel'])
+        .order('date', ascending: true);
+    final invoices = (data as List).map((m) => Invoice.fromMap(m)).toList();
+    final totals = await PaymentService()
+        .totalsByInvoice(invoices.map((i) => i.id).toList());
+    final result = <UnpaidInvoice>[];
+    for (final inv in invoices) {
+      final paid = totals[inv.id] ?? 0;
+      final restant = inv.totalTtc - paid;
+      if (restant > 0) {
+        result.add(UnpaidInvoice(invoice: inv, paid: paid, restant: restant));
+      }
+    }
+    return result;
   }
 
   Future<int> _nextSequenceForMarket(String marketId) async {

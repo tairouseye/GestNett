@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/employe.dart';
 import '../models/invoice.dart';
+import '../models/payment.dart';
 import '../models/company_settings.dart';
 import '../core/utils/formatters.dart';
 import '../features/invoices/invoice_wizard_data.dart';
@@ -753,6 +754,162 @@ class PdfService {
           style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 10),
         ),
       ]),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // REÇU DE PAIEMENT
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /// Génère un reçu PDF pour un paiement encaissé.
+  /// [totalPaye] = cumul payé sur la facture (ce paiement inclus).
+  static Future<Uint8List> generateRecu({
+    required Payment payment,
+    required Invoice invoice,
+    required double totalPaye,
+    CompanySettings? settings,
+  }) async {
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: pw.Font.helvetica(),
+        bold: pw.Font.helveticaBold(),
+        italic: pw.Font.helveticaOblique(),
+        boldItalic: pw.Font.helveticaBoldOblique(),
+      ),
+    );
+
+    pw.ImageProvider? logoImage;
+    pw.ImageProvider? cachetImage;
+    if (settings?.logoUrl != null && settings!.logoUrl!.isNotEmpty) {
+      try {
+        final resp = await http.get(Uri.parse(settings.logoUrl!));
+        if (resp.statusCode == 200) logoImage = pw.MemoryImage(resp.bodyBytes);
+      } catch (_) {}
+    }
+    if (logoImage == null) {
+      try {
+        final bytes = await rootBundle.load('assets/images/logo.png');
+        logoImage = pw.MemoryImage(bytes.buffer.asUint8List());
+      } catch (_) {}
+    }
+    if (settings?.signatureUrl != null && settings!.signatureUrl!.isNotEmpty) {
+      try {
+        final resp = await http.get(Uri.parse(settings.signatureUrl!));
+        if (resp.statusCode == 200) cachetImage = pw.MemoryImage(resp.bodyBytes);
+      } catch (_) {}
+    }
+    if (cachetImage == null) {
+      try {
+        final bytes = await rootBundle.load('assets/images/Signature.png');
+        cachetImage = pw.MemoryImage(bytes.buffer.asUint8List());
+      } catch (_) {}
+    }
+
+    final restant = (invoice.totalTtc - totalPaye).clamp(0, double.infinity).toDouble();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(30, 28, 30, 30),
+        build: (ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildHeader(logoImage, settings),
+            pw.SizedBox(height: 14),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  _metaRow('Date', _formatDate(payment.date)),
+                  _metaRow('Client', invoice.clientNom ?? 'Client'),
+                  _metaRow('Facture', invoice.numero),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 14),
+            pw.Center(
+              child: pw.Text('REÇU DE PAIEMENT',
+                  style: pw.TextStyle(
+                    font: pw.Font.helveticaBold(),
+                    fontSize: 18,
+                    decoration: pw.TextDecoration.underline,
+                    color: _darkGreen,
+                  )),
+            ),
+            pw.SizedBox(height: 12),
+            _buildRecuTable(payment, invoice, totalPaye, restant),
+            pw.SizedBox(height: 16),
+            pw.RichText(
+              text: pw.TextSpan(children: [
+                pw.TextSpan(
+                  text: 'Reçu la somme de : ',
+                  style: pw.TextStyle(font: pw.Font.helvetica(), fontSize: 10.5),
+                ),
+                pw.TextSpan(
+                  text: Formatters.montantEnLettres(payment.montant),
+                  style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 10.5),
+                ),
+              ]),
+            ),
+            if (restant > 0) ...[
+              pw.SizedBox(height: 6),
+              pw.Text(
+                'Reste dû sur cette facture : ${_numFmt.format(restant.round())} FCFA',
+                style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 10, color: _textRed),
+              ),
+            ],
+            pw.Spacer(),
+            _buildSignature(cachetImage),
+            pw.SizedBox(height: 16),
+            _buildFooter(settings),
+          ],
+        ),
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static pw.Widget _buildRecuTable(
+      Payment payment, Invoice invoice, double totalPaye, double restant) {
+    final rows = <pw.TableRow>[
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFE8F5E9)),
+        children: [
+          _cell('Désignation', bold: true, center: true),
+          _cell('Montant (FCFA)', bold: true, center: true, width: 130),
+        ],
+      ),
+      pw.TableRow(children: [
+        _cell('Total facture'),
+        _cell(_numFmt.format(invoice.totalTtc.round()), right: true, width: 130),
+      ]),
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFD6F8DF)),
+        children: [
+          _cell('Montant réglé (${payment.type.label})', bold: true),
+          _cell(_numFmt.format(payment.montant.round()), bold: true, right: true, width: 130),
+        ],
+      ),
+      pw.TableRow(children: [
+        _cell('Cumul payé'),
+        _cell(_numFmt.format(totalPaye.round()), right: true, width: 130),
+      ]),
+      pw.TableRow(children: [
+        _cell('Reste dû', color: restant > 0 ? _textRed : _textBlack),
+        _cell(_numFmt.format(restant.round()),
+            right: true, width: 130, color: restant > 0 ? _textRed : _textBlack),
+      ]),
+    ];
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: _borderCol, width: 0.8),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(3),
+        1: const pw.FixedColumnWidth(130),
+      },
+      children: rows,
     );
   }
 }

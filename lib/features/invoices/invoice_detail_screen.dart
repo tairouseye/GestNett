@@ -128,7 +128,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   }
 
   Future<void> _showAddPayment(BuildContext context) async {
-    final result = await showModalBottomSheet<bool>(
+    final created = await showModalBottomSheet<Payment>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -137,7 +137,45 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
         restant: _restant,
       ),
     );
-    if (result == true) _load();
+    if (created != null) {
+      await _load();
+      if (mounted) await _proposeRecu(created);
+    }
+  }
+
+  Future<void> _proposeRecu(Payment payment) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Paiement enregistré ✓'),
+        content: const Text('Voulez-vous générer un reçu de paiement (PDF) à envoyer au client ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Plus tard')),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.receipt_outlined, size: 18),
+            label: const Text('Reçu PDF'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || _invoice == null) return;
+    try {
+      final settings = await CompanySettingsService.getMySettings();
+      final bytes = await PdfService.generateRecu(
+        payment: payment,
+        invoice: _invoice!,
+        totalPaye: _totalPaid,
+        settings: settings,
+      );
+      await Printing.sharePdf(bytes: bytes, filename: 'recu-${_invoice!.numero}.pdf');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur génération reçu : $e'), backgroundColor: AppColors.red),
+        );
+      }
+    }
   }
 }
 
@@ -700,7 +738,7 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
     }
     setState(() { _saving = true; _error = null; });
     try {
-      await PaymentService().add(Payment(
+      final created = await PaymentService().add(Payment(
         id: '',
         invoiceId: widget.invoice.id,
         montant: montant,
@@ -717,7 +755,7 @@ class _AddPaymentSheetState extends State<_AddPaymentSheet> {
         await InvoiceService()
             .updateStatut(widget.invoice.id, InvoiceStatut.payeePartiel);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.pop(context, created);
     } catch (e) {
       setState(() { _error = e.toString(); _saving = false; });
     }

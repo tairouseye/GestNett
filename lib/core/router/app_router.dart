@@ -14,6 +14,7 @@ import '../../features/markets/market_form_screen.dart';
 import '../../features/invoices/invoices_list_screen.dart';
 import '../../features/invoices/invoice_wizard_screen.dart';
 import '../../features/invoices/invoice_detail_screen.dart';
+import '../../features/invoices/unpaid_screen.dart';
 import '../../features/employes/employes_list_screen.dart';
 import '../../features/employes/employe_form_screen.dart';
 import '../../features/employes/employe_detail_screen.dart';
@@ -128,6 +129,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     EmployeFormScreen(employeId: state.pathParameters['id']),
               ),
             ],
+          ),
+          GoRoute(
+            path: '/unpaid',
+            builder: (_, __) => const UnpaidScreen(),
           ),
           GoRoute(
             path: '/expenses',

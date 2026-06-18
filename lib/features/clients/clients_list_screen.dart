@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/logout_button.dart';
+import '../../core/widgets/search_field.dart';
 import '../../models/client.dart';
 import '../../services/client_service.dart';
 
@@ -10,41 +11,64 @@ final _clientsProvider = FutureProvider<List<Client>>((ref) {
   return ClientService().getAll();
 });
 
-class ClientsListScreen extends ConsumerWidget {
+class ClientsListScreen extends ConsumerStatefulWidget {
   const ClientsListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClientsListScreen> createState() => _ClientsListScreenState();
+}
+
+class _ClientsListScreenState extends ConsumerState<ClientsListScreen> {
+  String _query = '';
+
+  bool _match(Client c) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase();
+    return c.nom.toLowerCase().contains(q) ||
+        (c.telephone ?? '').toLowerCase().contains(q) ||
+        (c.adresse ?? '').toLowerCase().contains(q);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final clients = ref.watch(_clientsProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Clients'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {/* TODO: search */},
-          ),
-          const LogoutButton(),
-        ],
+        actions: const [LogoutButton()],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.go('/clients/new'),
         child: const Icon(Icons.add),
       ),
       body: clients.when(
-        data: (list) => list.isEmpty
-            ? const _EmptyState()
-            : RefreshIndicator(
-                color: AppColors.g500,
-                onRefresh: () async => ref.invalidate(_clientsProvider),
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: list.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _ClientTile(client: list[i]),
-                ),
+        data: (all) {
+          if (all.isEmpty) return const _EmptyState();
+          final list = all.where(_match).toList();
+          return Column(
+            children: [
+              SearchField(
+                hint: 'Rechercher (nom, téléphone, adresse)',
+                onChanged: (v) => setState(() => _query = v),
               ),
+              Expanded(
+                child: list.isEmpty
+                    ? const Center(child: Text('Aucun résultat', style: TextStyle(color: AppColors.s400)))
+                    : RefreshIndicator(
+                        color: AppColors.g500,
+                        onRefresh: () async => ref.invalidate(_clientsProvider),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: list.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (_, i) => _ClientTile(client: list[i]),
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erreur : $e')),
       ),

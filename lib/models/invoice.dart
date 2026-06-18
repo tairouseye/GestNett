@@ -33,6 +33,7 @@ class Invoice {
   final String? marketNumero;
   final String clientId;
   final String? clientNom;
+  final String? clientTelephone;
   final DateTime date;
   final double montantHt;
   final double tvaPct;
@@ -49,6 +50,7 @@ class Invoice {
     this.marketNumero,
     required this.clientId,
     this.clientNom,
+    this.clientTelephone,
     required this.date,
     required this.montantHt,
     this.tvaPct = 18.0,
@@ -72,6 +74,9 @@ class Invoice {
     clientId: m['client_id'] as String,
     clientNom: m['clients'] != null
         ? (m['clients'] as Map<String, dynamic>)['nom'] as String?
+        : null,
+    clientTelephone: m['clients'] != null
+        ? (m['clients'] as Map<String, dynamic>)['telephone'] as String?
         : null,
     date: DateTime.parse(m['date'] as String),
     montantHt: (m['montant_ht'] as num?)?.toDouble() ?? 0,

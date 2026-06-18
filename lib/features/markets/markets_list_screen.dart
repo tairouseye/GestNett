@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/logout_button.dart';
+import '../../core/widgets/search_field.dart';
 import '../../models/market.dart';
 import '../../services/market_service.dart';
 
@@ -16,6 +17,15 @@ class MarketsListScreen extends StatefulWidget {
 class _MarketsListScreenState extends State<MarketsListScreen> {
   List<Market> _markets = [];
   bool _loading = true;
+  String _query = '';
+
+  bool _match(Market m) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase();
+    return (m.clientNom ?? '').toLowerCase().contains(q) ||
+        m.numero.toLowerCase().contains(q) ||
+        (m.description ?? '').toLowerCase().contains(q);
+  }
 
   @override
   void initState() {
@@ -41,16 +51,31 @@ class _MarketsListScreenState extends State<MarketsListScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _markets.isEmpty
               ? const _EmptyState()
-              : RefreshIndicator(
-                  color: AppColors.g500,
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _markets.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => _MarketTile(market: _markets[i]),
-                  ),
-                ),
+              : Builder(builder: (_) {
+                  final list = _markets.where(_match).toList();
+                  return Column(
+                    children: [
+                      SearchField(
+                        hint: 'Rechercher (client, n° marché, prestation)',
+                        onChanged: (v) => setState(() => _query = v),
+                      ),
+                      Expanded(
+                        child: list.isEmpty
+                            ? const Center(child: Text('Aucun résultat', style: TextStyle(color: AppColors.s400)))
+                            : RefreshIndicator(
+                                color: AppColors.g500,
+                                onRefresh: _load,
+                                child: ListView.separated(
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: list.length,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                                  itemBuilder: (_, i) => _MarketTile(market: list[i]),
+                                ),
+                              ),
+                      ),
+                    ],
+                  );
+                }),
     );
   }
 }

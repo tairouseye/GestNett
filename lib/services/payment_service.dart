@@ -39,4 +39,19 @@ class PaymentService {
     return (data as List)
         .fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));
   }
+
+  /// Total encaissé par facture (id -> montant payé) — une seule requête.
+  Future<Map<String, double>> totalsByInvoice(List<String> invoiceIds) async {
+    if (invoiceIds.isEmpty) return {};
+    final data = await _db
+        .select('invoice_id, montant')
+        .inFilter('invoice_id', invoiceIds)
+        .eq('created_by', _uid);
+    final map = <String, double>{};
+    for (final r in (data as List)) {
+      final id = r['invoice_id'] as String;
+      map[id] = (map[id] ?? 0) + ((r['montant'] as num?)?.toDouble() ?? 0);
+    }
+    return map;
+  }
 }

@@ -36,7 +36,7 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
     // Marchés actifs
     supabase.from('markets').select('id').eq('created_by', uid).eq('statut', 'en_cours').count(),
     // Factures (sauf annulées)
-    supabase.from('invoices').select('total_ttc, statut').eq('created_by', uid).neq('statut', 'annulee'),
+    supabase.from('invoices').select('total_ttc, statut, type_facture').eq('created_by', uid).neq('statut', 'annulee'),
     // Paiements
     supabase.from('payments').select('montant').eq('created_by', uid),
     // Dépenses
@@ -56,7 +56,10 @@ final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
   final expensesList    = results[3] as List;
   final clientsEnRetard = (results[4].count as int?) ?? 0;
 
-  final totalFacture  = invoicesList.fold<double>(0, (s, r) => s + ((r['total_ttc'] as num?)?.toDouble() ?? 0));
+  // Les proformas sont des devis : exclues du "facturé" réel et du "reste à encaisser".
+  final totalFacture  = invoicesList
+      .where((r) => r['type_facture'] != 'proforma')
+      .fold<double>(0, (s, r) => s + ((r['total_ttc'] as num?)?.toDouble() ?? 0));
   final totalEncaisse = paymentsList.fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));
   final totalDepenses = expensesList.fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));
 

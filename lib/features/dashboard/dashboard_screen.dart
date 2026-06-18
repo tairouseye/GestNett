@@ -170,6 +170,7 @@ class _KpiGrid extends StatelessWidget {
           icon: Icons.warning_amber_outlined,
           color: AppColors.red,
           unit: 'factures',
+          onTap: () => context.go('/unpaid'),
         ),
       ],
     );
@@ -183,6 +184,7 @@ class _KpiCard extends StatelessWidget {
   final Color color;
   final String? unit;
   final bool fullWidth;
+  final VoidCallback? onTap;
 
   const _KpiCard({
     required this.label,
@@ -191,11 +193,12 @@ class _KpiCard extends StatelessWidget {
     required this.color,
     this.unit,
     this.fullWidth = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
@@ -248,6 +251,8 @@ class _KpiCard extends StatelessWidget {
         ],
       ),
     );
+    if (onTap == null) return card;
+    return GestureDetector(onTap: onTap, child: card);
   }
 }
 

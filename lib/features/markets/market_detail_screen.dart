@@ -70,7 +70,9 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
     if (mounted) setState(() { _market = updated; _loading = false; });
   }
 
-  double get _totalFacture  => _invoices.fold(0.0, (s, inv) => s + inv.totalTtc);
+  // Les proformas (devis) sont exclues du facturé réel et du reste à encaisser.
+  double get _totalFacture  =>
+      _invoices.where((inv) => !inv.isProforma).fold(0.0, (s, inv) => s + inv.totalTtc);
   double get _totalDepenses => _expenses.fold(0.0, (s, e) => s + e.montant);
   double get _masseSalariale => _affectations
       .where((a) => a.enCours)
