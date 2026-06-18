@@ -86,6 +86,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (_, state) =>
                     MarketDetailScreen(marketId: state.pathParameters['id']!),
               ),
+              GoRoute(
+                path: ':id/edit',
+                builder: (_, state) =>
+                    MarketFormScreen(marketId: state.pathParameters['id']),
+              ),
             ],
           ),
           GoRoute(

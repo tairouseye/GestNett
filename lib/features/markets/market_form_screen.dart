@@ -7,15 +7,16 @@ import '../../services/client_service.dart';
 import '../../services/market_service.dart';
 
 class MarketFormScreen extends StatefulWidget {
-  const MarketFormScreen({super.key});
+  final String? marketId;
+  const MarketFormScreen({super.key, this.marketId});
 
   @override
   State<MarketFormScreen> createState() => _MarketFormScreenState();
 }
 
 class _MarketFormScreenState extends State<MarketFormScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _descCtrl   = TextEditingController();
+  final _formKey   = GlobalKey<FormState>();
+  final _descCtrl  = TextEditingController();
   final _montantCtrl = TextEditingController();
 
   List<Client> _clients = [];
@@ -25,11 +26,15 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
   MarketStatut _statut = MarketStatut.enAttente;
   bool _loading = false;
   bool _loadingClients = true;
+  Market? _existing;
+
+  bool get _isEdit => widget.marketId != null;
 
   @override
   void initState() {
     super.initState();
     _loadClients();
+    if (_isEdit) _loadExisting();
   }
 
   Future<void> _loadClients() async {
@@ -43,6 +48,21 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
           SnackBar(content: Text('Erreur chargement clients : $e'), backgroundColor: Colors.red),
         );
       }
+    }
+  }
+
+  Future<void> _loadExisting() async {
+    final m = await MarketService().getById(widget.marketId!);
+    if (m != null && mounted) {
+      setState(() {
+        _existing          = m;
+        _selectedClientId  = m.clientId;
+        _descCtrl.text     = m.description ?? '';
+        _montantCtrl.text  = m.montantTotal.round().toString();
+        _statut            = m.statut;
+        _dateDebut         = m.dateDebut;
+        _dateFin           = m.dateFin;
+      });
     }
   }
 
@@ -66,23 +86,37 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
 
     setState(() => _loading = true);
     try {
-      final market = Market(
-        id: '',
-        numero: '',
-        clientId: _selectedClientId!,
-        description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-        montantTotal: double.parse(
-            _montantCtrl.text.replaceAll(' ', '').replaceAll(',', '')),
-        statut: _statut,
-        dateDebut: _dateDebut,
-        dateFin: _dateFin,
-        createdAt: DateTime.now(),
-      );
-      await MarketService().create(market);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Marché créé avec succès')));
-        context.go('/markets');
+      if (_isEdit) {
+        await MarketService().update(widget.marketId!, {
+          'description':  _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+          'montant_total': double.parse(_montantCtrl.text.replaceAll(' ', '').replaceAll(',', '')).round(),
+          'statut':       _statut.value,
+          if (_dateDebut != null) 'date_debut': _dateDebut!.toIso8601String().substring(0, 10),
+          if (_dateFin != null)   'date_fin':   _dateFin!.toIso8601String().substring(0, 10),
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Marché modifié avec succès')));
+          context.pop();
+        }
+      } else {
+        final market = Market(
+          id: '',
+          numero: '',
+          clientId: _selectedClientId!,
+          description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+          montantTotal: double.parse(_montantCtrl.text.replaceAll(' ', '').replaceAll(',', '')),
+          statut: _statut,
+          dateDebut: _dateDebut,
+          dateFin: _dateFin,
+          createdAt: DateTime.now(),
+        );
+        await MarketService().create(market);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Marché créé avec succès')));
+          context.go('/markets');
+        }
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -102,7 +136,7 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nouveau marché')),
+      appBar: AppBar(title: Text(_isEdit ? 'Modifier marché' : 'Nouveau marché')),
       body: _loadingClients
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -112,7 +146,7 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Sélection client
+                    // Sélection client (désactivée en édition)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -134,29 +168,29 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
                                     value: c.id,
                                     child: Text(c.nom,
                                         overflow: TextOverflow.ellipsis))).toList(),
-                            onChanged: (v) => setState(() =>
+                            onChanged: _isEdit ? null : (v) => setState(() =>
                                 _selectedClientId = v == '__none__' ? null : v),
                             validator: (v) => (v == null || v == '__none__')
                                 ? 'Sélectionne un client' : null,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Tooltip(
-                          message: 'Nouveau client',
-                          child: IconButton(
-                            icon: const Icon(Icons.person_add_outlined,
-                                color: AppColors.g600),
-                            onPressed: () async {
-                              await context.push('/clients/new');
-                              await _loadClients();
-                            },
+                        if (!_isEdit) ...[
+                          const SizedBox(width: 8),
+                          Tooltip(
+                            message: 'Nouveau client',
+                            child: IconButton(
+                              icon: const Icon(Icons.person_add_outlined, color: AppColors.g600),
+                              onPressed: () async {
+                                await context.push('/clients/new');
+                                await _loadClients();
+                              },
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 12),
 
-                    // Description
                     TextFormField(
                       controller: _descCtrl,
                       maxLines: 2,
@@ -167,7 +201,6 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Montant
                     TextFormField(
                       controller: _montantCtrl,
                       keyboardType: TextInputType.number,
@@ -178,15 +211,13 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Obligatoire';
-                        final n = double.tryParse(
-                            v.replaceAll(' ', '').replaceAll(',', ''));
+                        final n = double.tryParse(v.replaceAll(' ', '').replaceAll(',', ''));
                         if (n == null || n <= 0) return 'Montant invalide';
                         return null;
                       },
                     ),
                     const SizedBox(height: 12),
 
-                    // Statut
                     DropdownButtonFormField<MarketStatut>(
                       value: _statut,
                       decoration: const InputDecoration(
@@ -194,15 +225,12 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
                         prefixIcon: Icon(Icons.flag_outlined),
                       ),
                       items: MarketStatut.values
-                          .map((s) => DropdownMenuItem(
-                              value: s, child: Text(s.label)))
+                          .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))
                           .toList(),
-                      onChanged: (v) =>
-                          setState(() => _statut = v ?? _statut),
+                      onChanged: (v) => setState(() => _statut = v ?? _statut),
                     ),
                     const SizedBox(height: 12),
 
-                    // Dates
                     Row(
                       children: [
                         Expanded(child: _DateBtn(
@@ -225,9 +253,8 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
                       child: ElevatedButton(
                         onPressed: _loading ? null : _submit,
                         child: _loading
-                            ? const CircularProgressIndicator(
-                                strokeWidth: 2.5, color: AppColors.white)
-                            : const Text('Créer le marché'),
+                            ? const CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.white)
+                            : Text(_isEdit ? 'Enregistrer les modifications' : 'Créer le marché'),
                       ),
                     ),
                   ],

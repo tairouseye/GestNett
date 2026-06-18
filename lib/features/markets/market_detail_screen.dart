@@ -11,6 +11,7 @@ import '../../services/employe_service.dart';
 import '../../services/expense_service.dart';
 import '../../services/invoice_service.dart';
 import '../../services/market_service.dart';
+import '../../services/payment_service.dart';
 
 class MarketDetailScreen extends StatefulWidget {
   final String marketId;
@@ -25,6 +26,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
   List<Invoice> _invoices = [];
   List<Expense> _expenses = [];
   List<Affectation> _affectations = [];
+  double _totalEncaisse = 0;
   bool _loading = true;
 
   @override
@@ -45,12 +47,17 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
     final allInvoices = results[1] as List<Invoice>;
     final expenses    = results[2] as List<Expense>;
     final affectations = results[3] as List<Affectation>;
+    final marketInvoices =
+        allInvoices.where((inv) => inv.marketId == widget.marketId).toList();
+    final totalEncaisse = await PaymentService()
+        .totalForInvoices(marketInvoices.map((i) => i.id).toList());
     if (mounted) {
       setState(() {
         _market = market;
-        _invoices = allInvoices.where((inv) => inv.marketId == widget.marketId).toList();
+        _invoices = marketInvoices;
         _expenses = expenses;
         _affectations = affectations;
+        _totalEncaisse = totalEncaisse;
         _loading = false;
       });
     }
@@ -68,7 +75,9 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
   double get _masseSalariale => _affectations
       .where((a) => a.enCours)
       .fold(0.0, (s, a) => s + a.coutTotal);
-  double get _benefice => _totalFacture - _totalDepenses;
+  double get _resteAEncaisser => _totalFacture - _totalEncaisse;
+  double get _beneficeFacture  => _totalFacture  - _totalDepenses;
+  double get _beneficeEncaisse => _totalEncaisse - _totalDepenses;
 
   @override
   Widget build(BuildContext context) {
@@ -78,12 +87,20 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
         title: Text(_market?.numero ?? 'Marché'),
         actions: [
           if (_market != null)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Modifier',
+              onPressed: () async {
+                await context.push('/markets/${widget.marketId}/edit');
+                _load();
+              },
+            ),
+          if (_market != null)
             PopupMenuButton<MarketStatut>(
               icon: const Icon(Icons.more_vert),
               onSelected: _changeStatut,
               itemBuilder: (_) => MarketStatut.values
-                  .map((s) => PopupMenuItem(
-                      value: s, child: Text(s.label)))
+                  .map((s) => PopupMenuItem(value: s, child: Text(s.label)))
                   .toList(),
             ),
         ],
@@ -112,8 +129,11 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
                       _BilanCard(
                         montantTotal: _market!.montantTotal,
                         totalFacture: _totalFacture,
+                        totalEncaisse: _totalEncaisse,
+                        resteAEncaisser: _resteAEncaisser,
                         totalDepenses: _totalDepenses,
-                        benefice: _benefice,
+                        beneficeFacture: _beneficeFacture,
+                        beneficeEncaisse: _beneficeEncaisse,
                       ),
                       const SizedBox(height: 12),
                       _PersonnelSection(
@@ -162,8 +182,17 @@ class _MarketInfoCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(market.clientNom ?? 'Client',
-                      style: Theme.of(context).textTheme.titleLarge),
+                  child: GestureDetector(
+                    onTap: () => context.push('/clients/${market.clientId}'),
+                    child: Row(children: [
+                      Flexible(
+                        child: Text(market.clientNom ?? 'Client',
+                            style: Theme.of(context).textTheme.titleLarge),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.open_in_new, size: 14, color: AppColors.g600),
+                    ]),
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -202,12 +231,16 @@ class _MarketInfoCard extends StatelessWidget {
 // ── Bilan financier ───────────────────────────────────────────────────────────
 
 class _BilanCard extends StatelessWidget {
-  final double montantTotal, totalFacture, totalDepenses, benefice;
+  final double montantTotal, totalFacture, totalEncaisse, resteAEncaisser,
+      totalDepenses, beneficeFacture, beneficeEncaisse;
   const _BilanCard({
     required this.montantTotal,
     required this.totalFacture,
+    required this.totalEncaisse,
+    required this.resteAEncaisser,
     required this.totalDepenses,
-    required this.benefice,
+    required this.beneficeFacture,
+    required this.beneficeEncaisse,
   });
 
   @override
@@ -234,16 +267,41 @@ class _BilanCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
+                _KpiBox('Encaissé', Formatters.fcfa(totalEncaisse),
+                    AppColors.g600, Icons.account_balance_wallet_outlined),
+                const SizedBox(width: 8),
+                _KpiBox(
+                  'Reste à encaisser',
+                  Formatters.fcfa(resteAEncaisser),
+                  resteAEncaisser > 0 ? AppColors.orange : AppColors.g600,
+                  Icons.hourglass_bottom_outlined,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
                 _KpiBox('Dépenses', Formatters.fcfa(totalDepenses),
                     AppColors.red, Icons.trending_down_outlined),
                 const SizedBox(width: 8),
+                const _KpiBoxSpacer(),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
                 _KpiBox(
-                  'Bénéfice',
-                  Formatters.fcfa(benefice),
-                  benefice >= 0 ? AppColors.g600 : AppColors.red,
-                  benefice >= 0
-                      ? Icons.trending_up
-                      : Icons.trending_down,
+                  'Bénéf. facturé',
+                  Formatters.fcfa(beneficeFacture),
+                  beneficeFacture >= 0 ? AppColors.blue : AppColors.red,
+                  beneficeFacture >= 0 ? Icons.trending_up : Icons.trending_down,
+                ),
+                const SizedBox(width: 8),
+                _KpiBox(
+                  'Bénéf. encaissé',
+                  Formatters.fcfa(beneficeEncaisse),
+                  beneficeEncaisse >= 0 ? AppColors.g600 : AppColors.red,
+                  beneficeEncaisse >= 0 ? Icons.trending_up : Icons.trending_down,
                 ),
               ],
             ),
@@ -252,6 +310,12 @@ class _BilanCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _KpiBoxSpacer extends StatelessWidget {
+  const _KpiBoxSpacer();
+  @override
+  Widget build(BuildContext context) => const Expanded(child: SizedBox());
 }
 
 class _KpiBox extends StatelessWidget {

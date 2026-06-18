@@ -28,4 +28,15 @@ class PaymentService {
 
   Future<void> delete(String id) =>
       _db.delete().eq('id', id).eq('created_by', _uid);
+
+  /// Total encaissé pour un ensemble de factures — une seule requête.
+  Future<double> totalForInvoices(List<String> invoiceIds) async {
+    if (invoiceIds.isEmpty) return 0;
+    final data = await _db
+        .select('montant')
+        .inFilter('invoice_id', invoiceIds)
+        .eq('created_by', _uid);
+    return (data as List)
+        .fold<double>(0, (s, r) => s + ((r['montant'] as num?)?.toDouble() ?? 0));
+  }
 }

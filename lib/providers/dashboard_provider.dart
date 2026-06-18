@@ -19,6 +19,7 @@ class DashboardStats {
   });
 
   double get beneficeEstime => totalEncaisse - totalDepenses;
+  double get resteAEncaisser => totalFacture - totalEncaisse;
 }
 
 class MonthlyData {

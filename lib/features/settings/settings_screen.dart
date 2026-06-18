@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/widgets/logout_button.dart';
 import '../../models/company_settings.dart';
 import '../../services/company_settings_service.dart';
+import '../../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -33,6 +34,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _rccmCtrl    = TextEditingController();
   final _ibanCtrl    = TextEditingController();
   final _banqueCtrl  = TextEditingController();
+
+  // Sécurité
+  final _newPassCtrl     = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
+  bool _changingPassword = false;
 
   String? _logoUrl;
   String? _signatureUrl;
@@ -78,7 +84,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _rccmCtrl.dispose();
     _ibanCtrl.dispose();
     _banqueCtrl.dispose();
+    _newPassCtrl.dispose();
+    _confirmPassCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _changePassword() async {
+    final pass    = _newPassCtrl.text;
+    final confirm = _confirmPassCtrl.text;
+    if (pass.length < 6) {
+      _showError('Mot de passe : 6 caractères minimum');
+      return;
+    }
+    if (pass != confirm) {
+      _showError('Les mots de passe ne correspondent pas');
+      return;
+    }
+    setState(() => _changingPassword = true);
+    try {
+      await AuthService().updatePassword(pass);
+      _newPassCtrl.clear();
+      _confirmPassCtrl.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mot de passe modifié'), backgroundColor: AppColors.g600),
+        );
+      }
+    } catch (e) {
+      _showError('Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _changingPassword = false);
+    }
   }
 
   Future<void> _load() async {
@@ -316,6 +352,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : const Icon(Icons.save_outlined),
                         label: Text(_saving ? 'Sauvegarde...' : 'Sauvegarder'),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // ── Sécurité ───────────────────────────────────────────
+                    _SectionHeader('Sécurité', Icons.lock_outline),
+                    const SizedBox(height: 4),
+                    const Text('Modifier votre mot de passe de connexion.',
+                        style: TextStyle(fontSize: 12, color: AppColors.s400)),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _newPassCtrl,
+                      obscureText: true,
+                      autofillHints: const [],
+                      decoration: InputDecoration(
+                        labelText: 'Nouveau mot de passe',
+                        prefixIcon: const Icon(Icons.lock_outline, size: 18),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _confirmPassCtrl,
+                      obscureText: true,
+                      autofillHints: const [],
+                      decoration: InputDecoration(
+                        labelText: 'Confirmer le mot de passe',
+                        prefixIcon: const Icon(Icons.lock_outline, size: 18),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.g700,
+                          side: const BorderSide(color: AppColors.g700),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: _changingPassword ? null : _changePassword,
+                        icon: _changingPassword
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.key_outlined),
+                        label: Text(_changingPassword ? 'Modification...' : 'Changer le mot de passe'),
                       ),
                     ),
                     const SizedBox(height: 24),

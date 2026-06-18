@@ -353,7 +353,8 @@ class _EmptyState extends StatelessWidget {
 // ── Formulaire ajout dépense ─────────────────────────────────────────────────
 
 class _AddExpenseSheet extends StatefulWidget {
-  const _AddExpenseSheet();
+  final Market? initialMarket;
+  const _AddExpenseSheet({this.initialMarket});
 
   @override
   State<_AddExpenseSheet> createState() => _AddExpenseSheetState();
@@ -375,6 +376,7 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
   @override
   void initState() {
     super.initState();
+    _market = widget.initialMarket;
     _loadMarkets();
   }
 

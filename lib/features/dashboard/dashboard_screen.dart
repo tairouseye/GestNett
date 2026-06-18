@@ -146,6 +146,12 @@ class _KpiGrid extends StatelessWidget {
           color: AppColors.g500,
         ),
         _KpiCard(
+          label: 'Reste à encaisser',
+          value: Formatters.fcfa(stats.resteAEncaisser),
+          icon: Icons.hourglass_bottom_outlined,
+          color: AppColors.gold,
+        ),
+        _KpiCard(
           label: 'Dépenses',
           value: Formatters.fcfa(stats.totalDepenses),
           icon: Icons.trending_down,
