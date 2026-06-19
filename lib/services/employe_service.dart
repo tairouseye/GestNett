@@ -30,13 +30,13 @@ class EmployeService {
     return (data as List).map((m) => Employe.fromMap(m)).toList();
   }
 
-  /// Employés de catégorie supervision (pour choisir le N+1).
+  /// Employés pouvant être N+1 : supervision et gestion (actifs).
   Future<List<Employe>> getSuperviseurs() async {
     final data = await _db
         .from('employes')
         .select()
         .eq('created_by', _uid)
-        .eq('categorie', 'supervision')
+        .inFilter('categorie', ['supervision', 'gestion'])
         .eq('statut', 'actif')
         .order('nom');
     return (data as List).map((m) => Employe.fromMap(m)).toList();

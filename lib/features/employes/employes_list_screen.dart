@@ -84,6 +84,11 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
                           onTap: () => setState(() => _filtre = null),
                         ),
                         _FilterChip(
+                          label: '🏛️ Gestion',
+                          selected: _filtre == EmployeCategorie.gestion,
+                          onTap: () => setState(() => _filtre = EmployeCategorie.gestion),
+                        ),
+                        _FilterChip(
                           label: '🧭 Supervision',
                           selected: _filtre == EmployeCategorie.supervision,
                           onTap: () => setState(() => _filtre = EmployeCategorie.supervision),
@@ -197,8 +202,11 @@ class CategorieBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sup = categorie == EmployeCategorie.supervision;
-    final color = sup ? AppColors.blue : AppColors.g600;
+    final color = switch (categorie) {
+      EmployeCategorie.gestion     => const Color(0xFF7C3AED), // violet
+      EmployeCategorie.supervision => AppColors.blue,
+      EmployeCategorie.terrain     => AppColors.g600,
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -206,7 +214,7 @@ class CategorieBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        sup ? 'Supervision' : 'Terrain',
+        categorie.label,
         style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: color),
       ),
     );

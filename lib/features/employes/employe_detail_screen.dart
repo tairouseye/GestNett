@@ -306,6 +306,7 @@ class _EvaluationsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final sup = _latest(EvaluationType.superviseur);
     final cli = _latest(EvaluationType.client);
+    final bothEvals = sup != null && cli != null;
     final note = noteFinale(scoreSuperviseur: sup, scoreClient: cli);
     final faible = note != null && note < kNoteFaibleSeuil;
     final noteColor = note == null
@@ -382,8 +383,19 @@ class _EvaluationsCard extends StatelessWidget {
               ),
             ),
 
-            // Niveau de performance + action recommandée
-            if (niveauFromNote(note) case final niv?) ...[
+            // Évaluation partielle : on attend les deux avis avant de décider l'action.
+            if (!bothEvals && note != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Évaluation partielle — en attente de '
+                '${sup == null ? 'l\'évaluation superviseur' : 'l\'évaluation client'} '
+                'avant de déterminer le niveau et l\'action.',
+                style: const TextStyle(fontSize: 12, color: AppColors.s400, fontStyle: FontStyle.italic),
+              ),
+            ],
+
+            // Niveau de performance + action recommandée (seulement si les 2 évals)
+            if (niveauFromNote(note) case final niv? when bothEvals) ...[
               const SizedBox(height: 8),
               Builder(builder: (_) {
                 final c = _niveauColor(niv);

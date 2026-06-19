@@ -151,7 +151,7 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         dateEmbauche:         _dateEmbauche,
         statut:               _statut,
         notes:                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-        superviseurId:        _superviseurId,
+        superviseurId:        _categorie == EmployeCategorie.gestion ? null : _superviseurId,
         visiteMedicaleLe:     _visiteMedicaleLe,
         createdAt:            _existing?.createdAt ?? DateTime.now(),
       );
@@ -253,9 +253,11 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                         const DropdownMenuItem(value: null, child: Text('Non précisée')),
                         ...EmployeCategorie.values.map((c) => DropdownMenuItem(
                               value: c,
-                              child: Text(c == EmployeCategorie.supervision
-                                  ? '🧭 Supervision'
-                                  : '🛠️ Terrain'),
+                              child: Text(switch (c) {
+                                EmployeCategorie.gestion     => '🏛️ Gestion',
+                                EmployeCategorie.supervision => '🧭 Supervision',
+                                EmployeCategorie.terrain     => '🛠️ Terrain',
+                              }),
                             )),
                       ],
                       onChanged: (v) => setState(() {
@@ -473,31 +475,41 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                     _section('Suivi RH', Icons.supervisor_account_outlined),
                     const SizedBox(height: 12),
 
-                    // N+1 (superviseur)
-                    DropdownButtonFormField<String?>(
-                      value: _superviseurs.any((s) => s.id == _superviseurId)
-                          ? _superviseurId
-                          : null,
-                      isExpanded: true,
-                      decoration: _deco('Superviseur (N+1)', prefixIcon: Icons.person_pin_outlined),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('Aucun')),
-                        ..._superviseurs.map((s) => DropdownMenuItem(
-                              value: s.id,
-                              child: Text(s.nomComplet),
-                            )),
-                      ],
-                      onChanged: (v) => setState(() => _superviseurId = v),
-                    ),
-                    if (_superviseurs.isEmpty)
+                    // N+1 (superviseur) — masqué pour les gestionnaires (sommet de hiérarchie)
+                    if (_categorie == EmployeCategorie.gestion)
                       const Padding(
-                        padding: EdgeInsets.only(top: 6, left: 4),
+                        padding: EdgeInsets.only(bottom: 12, left: 4),
                         child: Text(
-                          'Astuce : créez d\'abord des employés en catégorie « Supervision ».',
-                          style: TextStyle(fontSize: 11, color: AppColors.s400),
+                          '🏛️ Gestionnaire : sommet de la hiérarchie, pas de N+1.',
+                          style: TextStyle(fontSize: 12, color: AppColors.s500),
                         ),
+                      )
+                    else ...[
+                      DropdownButtonFormField<String?>(
+                        value: _superviseurs.any((s) => s.id == _superviseurId)
+                            ? _superviseurId
+                            : null,
+                        isExpanded: true,
+                        decoration: _deco('Superviseur (N+1)', prefixIcon: Icons.person_pin_outlined),
+                        items: [
+                          const DropdownMenuItem(value: null, child: Text('Aucun')),
+                          ..._superviseurs.map((s) => DropdownMenuItem(
+                                value: s.id,
+                                child: Text(s.nomComplet),
+                              )),
+                        ],
+                        onChanged: (v) => setState(() => _superviseurId = v),
                       ),
-                    const SizedBox(height: 12),
+                      if (_superviseurs.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6, left: 4),
+                          child: Text(
+                            'Astuce : créez d\'abord des employés en catégorie « Supervision » ou « Gestion ».',
+                            style: TextStyle(fontSize: 11, color: AppColors.s400),
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                    ],
 
                     // Visite médicale de démarrage
                     InkWell(

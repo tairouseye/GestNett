@@ -1,17 +1,22 @@
 enum EmployeStatut { actif, inactif }
 
-enum EmployeCategorie { supervision, terrain }
+enum EmployeCategorie { gestion, supervision, terrain }
 
 extension EmployeCategorieExt on EmployeCategorie {
   String get value => switch (this) {
+    EmployeCategorie.gestion     => 'gestion',
     EmployeCategorie.supervision => 'supervision',
     EmployeCategorie.terrain     => 'terrain',
   };
   String get label => switch (this) {
+    EmployeCategorie.gestion     => 'Gestion',
     EmployeCategorie.supervision => 'Supervision',
     EmployeCategorie.terrain     => 'Terrain',
   };
+  /// Les gestionnaires sont au sommet : pas de N+1 requis.
+  bool get sansSuperviseur => this == EmployeCategorie.gestion;
   static EmployeCategorie? fromValue(String? v) => switch (v) {
+    'gestion'     => EmployeCategorie.gestion,
     'supervision' => EmployeCategorie.supervision,
     'terrain'     => EmployeCategorie.terrain,
     _             => null,
@@ -20,6 +25,12 @@ extension EmployeCategorieExt on EmployeCategorie {
 
 /// Métiers suggérés par catégorie (le champ reste libre via "Autre…").
 class EmployeMetiers {
+  static const gestion = [
+    'Gérant / Gérante',
+    'Directeur / Directrice',
+    'Gestionnaire',
+    'Administrateur / Administratrice',
+  ];
   static const supervision = [
     'Chef d\'équipe',
     'Superviseur',
@@ -40,12 +51,13 @@ class EmployeMetiers {
     'Aide aux personnes âgées',
   ];
 
-  static const all = [...supervision, ...terrain];
+  static const all = [...gestion, ...supervision, ...terrain];
 
   static List<String> forCategorie(EmployeCategorie? c) => switch (c) {
+    EmployeCategorie.gestion     => gestion,
     EmployeCategorie.supervision => supervision,
     EmployeCategorie.terrain     => terrain,
-    null                         => [...supervision, ...terrain],
+    null                         => all,
   };
 }
 
@@ -183,8 +195,7 @@ class Employe {
         'statut':                statut.value,
         if (notes != null)       'notes':                notes,
         'superviseur_id':        superviseurId,
-        if (visiteMedicaleLe != null)
-          'visite_medicale_le':  visiteMedicaleLe!.toIso8601String().substring(0, 10),
+        'visite_medicale_le':    visiteMedicaleLe?.toIso8601String().substring(0, 10),
       };
 }
 

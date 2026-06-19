@@ -60,7 +60,10 @@ class EvaluationService {
         cli ??= ev.score;
       }
     }
-    final note = noteFinale(scoreSuperviseur: sup, scoreClient: cli);
+    // Les actions ne se déclenchent qu'avec les DEUX évaluations (superviseur + client).
+    final note = (sup != null && cli != null)
+        ? noteFinale(scoreSuperviseur: sup, scoreClient: cli)
+        : null;
     final aSuivre    = note != null && note < kNoteFaibleSeuil;
     final aValoriser = note != null && note >= kNoteExcellentSeuil;
     await _db

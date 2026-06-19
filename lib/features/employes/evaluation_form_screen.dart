@@ -54,6 +54,19 @@ class _EvaluationFormScreenState extends State<EvaluationFormScreen> {
   }
 
   Future<void> _save() async {
+    // #4 : une évaluation superviseur doit être rattachée à un marché
+    // (sinon le rappel « visite terrain » ne peut pas se résoudre).
+    if (widget.type == EvaluationType.superviseur &&
+        widget.affectationsActives.isNotEmpty &&
+        _marketId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sélectionnez le marché concerné par cette évaluation.'),
+          backgroundColor: AppColors.orange,
+        ),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       await EvaluationService().add(Evaluation(
