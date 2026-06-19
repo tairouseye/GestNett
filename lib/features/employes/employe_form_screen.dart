@@ -140,6 +140,7 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         nom:                  _nomCtrl.text.trim(),
         prenom:               _prenomCtrl.text.trim().isEmpty ? null : _prenomCtrl.text.trim(),
         poste:                _posteCtrl.text.trim().isEmpty ? null : _posteCtrl.text.trim(),
+        categorie:            _categorie,
         telephone:            _telCtrl.text.trim().isEmpty ? null : _telCtrl.text.trim(),
         salaireMensuel:       _brut,
         partSalariale:        _salariale,
