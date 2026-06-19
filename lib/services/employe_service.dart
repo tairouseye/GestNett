@@ -160,6 +160,16 @@ class EmployeService {
     required String marketId,
     required DateTime dateDebut,
   }) async {
+    // Règle métier : visite médicale validée obligatoire avant affectation.
+    final emp = await _db
+        .from('employes')
+        .select('visite_medicale_le')
+        .eq('id', employeId)
+        .eq('created_by', _uid)
+        .maybeSingle();
+    if (emp == null || emp['visite_medicale_le'] == null) {
+      throw Exception('Visite médicale non validée : affectation impossible.');
+    }
     final data = await _db
         .from('affectations')
         .insert({

@@ -108,6 +108,27 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
   }
 
   Future<void> _affecter() async {
+    // Pré-requis : visite médicale validée avant toute affectation.
+    if (_employe != null && !_employe!.visiteMedicaleFaite) {
+      final marquer = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Visite médicale requise'),
+          content: const Text(
+            'Cet employé ne peut pas être affecté à un marché tant que sa '
+            'visite médicale de démarrage n\'est pas validée.\n\n'
+            'Voulez-vous enregistrer la date de la visite maintenant ?',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Plus tard')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Saisir la visite')),
+          ],
+        ),
+      );
+      if (marquer == true) await _marquerVisite();
+      return;
+    }
+
     final markets = await MarketService().getActive();
     if (!mounted) return;
 
