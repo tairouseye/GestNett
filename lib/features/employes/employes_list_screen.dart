@@ -252,6 +252,11 @@ class _EmployeCard extends StatelessWidget {
               child: Text(employe.nomComplet,
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             ),
+            if (employe.aSuivre)
+              const Padding(
+                padding: EdgeInsets.only(right: 4),
+                child: Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.red),
+              ),
             if (employe.categorie != null) CategorieBadge(categorie: employe.categorie!),
           ],
         ),

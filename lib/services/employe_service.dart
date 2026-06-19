@@ -62,6 +62,27 @@ class EmployeService {
         .eq('created_by', _uid);
   }
 
+  /// Plan d'action (rempli par le N+1 quand l'employé est « à suivre »).
+  Future<void> updatePlanAction(String id, String? texte) async {
+    await _db
+        .from('employes')
+        .update({'plan_action': (texte?.trim().isEmpty ?? true) ? null : texte!.trim()})
+        .eq('id', id)
+        .eq('created_by', _uid);
+  }
+
+  /// Affectations en cours (date_fin null) de tous les marchés — pour les
+  /// rappels de visite terrain.
+  Future<List<Affectation>> getAffectationsActives() async {
+    final data = await _db
+        .from('affectations')
+        .select('*, employes(nom, prenom, salaire_mensuel, part_patronale, frais_gestion_type, frais_gestion_montant, frais_gestion_pct), markets(numero)')
+        .eq('created_by', _uid)
+        .isFilter('date_fin', null)
+        .order('date_debut');
+    return (data as List).map((m) => Affectation.fromMap(m)).toList();
+  }
+
   Future<Employe> create(Employe employe) async {
     final matricule = (employe.matricule?.isNotEmpty == true)
         ? employe.matricule!

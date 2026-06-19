@@ -54,6 +54,8 @@ class _ReminderTile extends StatelessWidget {
     };
     final icon = switch (reminder.type) {
       ReminderType.visiteMedicale => Icons.medical_services_outlined,
+      ReminderType.visiteTerrain  => Icons.assignment_outlined,
+      ReminderType.suiviQualite   => Icons.warning_amber_outlined,
     };
     return Card(
       margin: EdgeInsets.zero,

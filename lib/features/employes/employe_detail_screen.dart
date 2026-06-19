@@ -8,11 +8,14 @@ import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/company_settings.dart';
 import '../../models/employe.dart';
+import '../../models/evaluation.dart';
 import '../../models/market.dart';
 import '../../services/company_settings_service.dart';
 import '../../services/employe_service.dart';
+import '../../services/evaluation_service.dart';
 import '../../services/market_service.dart';
 import '../../services/pdf_service.dart';
+import 'evaluation_form_screen.dart';
 
 class EmployeDetailScreen extends StatefulWidget {
   final String employeId;
@@ -25,6 +28,7 @@ class EmployeDetailScreen extends StatefulWidget {
 class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
   Employe? _employe;
   List<Affectation> _affectations = [];
+  List<Evaluation> _evaluations = [];
   bool _loading = true;
 
   @override
@@ -38,12 +42,57 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
     final results = await Future.wait([
       EmployeService().getById(widget.employeId),
       EmployeService().getByEmploye(widget.employeId),
+      EvaluationService().getByEmploye(widget.employeId),
     ]);
     if (mounted) setState(() {
       _employe      = results[0] as Employe?;
       _affectations = results[1] as List<Affectation>;
+      _evaluations  = results[2] as List<Evaluation>;
       _loading      = false;
     });
+  }
+
+  Future<void> _evaluer(EvaluationType type) async {
+    final actives = _affectations.where((a) => a.enCours).toList();
+    final ok = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EvaluationFormScreen(
+          employe: _employe!,
+          type: type,
+          affectationsActives: actives,
+        ),
+      ),
+    );
+    if (ok == true) await _load();
+  }
+
+  Future<void> _editPlanAction() async {
+    final ctrl = TextEditingController(text: _employe?.planAction ?? '');
+    final texte = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Plan d\'action'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Mesures à prendre suite à la note faible...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    if (texte == null) return;
+    await EmployeService().updatePlanAction(widget.employeId, texte);
+    await _load();
   }
 
   Future<void> _marquerVisite() async {
@@ -173,12 +222,223 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
                         onAffecter: _affecter,
                         onTerminer: _terminer,
                       ),
+                      const SizedBox(height: 12),
+                      _EvaluationsCard(
+                        employe: _employe!,
+                        evaluations: _evaluations,
+                        onEvaluer: _evaluer,
+                        onEditPlan: _editPlanAction,
+                      ),
                       const SizedBox(height: 80),
                     ],
                   ),
                 ),
     );
   }
+}
+
+class _EvaluationsCard extends StatelessWidget {
+  final Employe employe;
+  final List<Evaluation> evaluations;
+  final void Function(EvaluationType) onEvaluer;
+  final VoidCallback onEditPlan;
+  const _EvaluationsCard({
+    required this.employe,
+    required this.evaluations,
+    required this.onEvaluer,
+    required this.onEditPlan,
+  });
+
+  double? _latest(EvaluationType t) {
+    for (final e in evaluations) {
+      if (e.type == t) return e.score; // triées date desc
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sup = _latest(EvaluationType.superviseur);
+    final cli = _latest(EvaluationType.client);
+    final note = noteFinale(scoreSuperviseur: sup, scoreClient: cli);
+    final faible = note != null && note < kNoteFaibleSeuil;
+    final noteColor = note == null
+        ? AppColors.s400
+        : faible
+            ? AppColors.red
+            : AppColors.g600;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Évaluations',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+                if (employe.aSuivre)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.red.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text('⚠️ À suivre',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.red)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Note finale pondérée
+            Row(
+              children: [
+                Expanded(
+                  child: _scoreBox('Superviseur (40%)', sup),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _scoreBox('Client (60%)', cli),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: noteColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: noteColor.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Note finale pondérée',
+                      style: TextStyle(fontSize: 13, color: AppColors.s500)),
+                  Text(note == null ? '—' : '${note.toStringAsFixed(1)} / 20',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: noteColor)),
+                ],
+              ),
+            ),
+
+            // Plan d'action si à suivre
+            if (employe.aSuivre) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.orange.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.orange.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text('Plan d\'action (N+1)',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.orange)),
+                        ),
+                        TextButton(
+                          onPressed: onEditPlan,
+                          child: Text(employe.planAction == null ? 'Définir' : 'Modifier',
+                              style: const TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      employe.planAction ?? 'Aucun plan défini.',
+                      style: const TextStyle(fontSize: 12, color: AppColors.s500),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const Divider(height: 24),
+
+            // Boutons d'évaluation
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => onEvaluer(EvaluationType.superviseur),
+                    icon: const Icon(Icons.assignment_outlined, size: 16),
+                    label: const Text('Superviseur', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => onEvaluer(EvaluationType.client),
+                    icon: const Icon(Icons.person_outline, size: 16),
+                    label: const Text('Client', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              ],
+            ),
+
+            // Historique
+            if (evaluations.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Historique',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.s500)),
+              const SizedBox(height: 4),
+              ...evaluations.map((e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        Icon(
+                          e.type == EvaluationType.client ? Icons.person_outline : Icons.assignment_outlined,
+                          size: 14, color: AppColors.s400,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '${e.type.label}'
+                            '${e.marketNumero != null ? ' · ${e.marketNumero}' : ''}'
+                            ' · ${DateFormat('dd/MM/yyyy').format(e.date)}',
+                            style: const TextStyle(fontSize: 11, color: AppColors.s500),
+                          ),
+                        ),
+                        Text('${e.score.toStringAsFixed(1)}/20',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: e.score < kNoteFaibleSeuil ? AppColors.red : AppColors.g600)),
+                      ],
+                    ),
+                  )),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _scoreBox(String label, double? score) => Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.s50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 10, color: AppColors.s400)),
+            const SizedBox(height: 2),
+            Text(score == null ? '—' : '${score.toStringAsFixed(1)}/20',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
 }
 
 class _VisiteMedicaleCard extends StatelessWidget {
