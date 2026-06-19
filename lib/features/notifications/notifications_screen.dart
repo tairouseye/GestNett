@@ -47,15 +47,18 @@ class _ReminderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (reminder.severite) {
-      ReminderSeverite.danger  => AppColors.red,
-      ReminderSeverite.warning => AppColors.orange,
-      ReminderSeverite.info    => AppColors.blue,
-    };
+    final color = reminder.type == ReminderType.valorisation
+        ? AppColors.g600
+        : switch (reminder.severite) {
+            ReminderSeverite.danger  => AppColors.red,
+            ReminderSeverite.warning => AppColors.orange,
+            ReminderSeverite.info    => AppColors.blue,
+          };
     final icon = switch (reminder.type) {
       ReminderType.visiteMedicale => Icons.medical_services_outlined,
       ReminderType.visiteTerrain  => Icons.assignment_outlined,
       ReminderType.suiviQualite   => Icons.warning_amber_outlined,
+      ReminderType.valorisation   => Icons.star_outline,
     };
     return Card(
       margin: EdgeInsets.zero,

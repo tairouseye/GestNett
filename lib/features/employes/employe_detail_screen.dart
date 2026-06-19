@@ -336,6 +336,16 @@ class _EvaluationsCard extends StatelessWidget {
                     child: const Text('⚠️ À suivre',
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.red)),
                   ),
+                if (employe.aValoriser)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.gold.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text('⭐ À valoriser',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF8A6D00))),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -371,6 +381,33 @@ class _EvaluationsCard extends StatelessWidget {
                 ],
               ),
             ),
+
+            // Niveau de performance + action recommandée
+            if (niveauFromNote(note) case final niv?) ...[
+              const SizedBox(height: 8),
+              Builder(builder: (_) {
+                final c = _niveauColor(niv);
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: c.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: c.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${niv.emoji}  Niveau : ${niv.label}',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c)),
+                      const SizedBox(height: 4),
+                      Text(niv.action,
+                          style: const TextStyle(fontSize: 12, color: AppColors.s500)),
+                    ],
+                  ),
+                );
+              }),
+            ],
 
             // Plan d'action si à suivre
             if (employe.aSuivre) ...[
@@ -468,6 +505,13 @@ class _EvaluationsCard extends StatelessWidget {
       ),
     );
   }
+
+  Color _niveauColor(NiveauPerformance niv) => switch (niv) {
+        NiveauPerformance.faible     => AppColors.red,
+        NiveauPerformance.aAmeliorer => AppColors.orange,
+        NiveauPerformance.bien       => AppColors.g600,
+        NiveauPerformance.excellent  => AppColors.gold,
+      };
 
   Widget _scoreBox(String label, double? score) => Container(
         padding: const EdgeInsets.all(10),

@@ -257,6 +257,11 @@ class _EmployeCard extends StatelessWidget {
                 padding: EdgeInsets.only(right: 4),
                 child: Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.red),
               ),
+            if (employe.aValoriser)
+              const Padding(
+                padding: EdgeInsets.only(right: 4),
+                child: Icon(Icons.star_rounded, size: 16, color: AppColors.gold),
+              ),
             if (employe.categorie != null) CategorieBadge(categorie: employe.categorie!),
           ],
         ),

@@ -58,8 +58,47 @@ class EvaluationCriteres {
   }
 }
 
-/// Seuil en dessous duquel la note est jugée faible (action requise).
+/// Seuil en dessous duquel la note est jugée faible (action corrective requise).
 const double kNoteFaibleSeuil = 10.0;
+/// Seuil à partir duquel la performance est excellente (à valoriser).
+const double kNoteExcellentSeuil = 16.0;
+
+/// Niveau de performance dérivé de la note finale /20, avec action recommandée.
+enum NiveauPerformance { faible, aAmeliorer, bien, excellent }
+
+extension NiveauPerformanceExt on NiveauPerformance {
+  String get label => switch (this) {
+    NiveauPerformance.faible     => 'Faible',
+    NiveauPerformance.aAmeliorer => 'À améliorer',
+    NiveauPerformance.bien       => 'Bien',
+    NiveauPerformance.excellent  => 'Excellent',
+  };
+  String get emoji => switch (this) {
+    NiveauPerformance.faible     => '🔴',
+    NiveauPerformance.aAmeliorer => '🟠',
+    NiveauPerformance.bien       => '🟢',
+    NiveauPerformance.excellent  => '⭐',
+  };
+  String get action => switch (this) {
+    NiveauPerformance.faible =>
+        'Plan d\'action obligatoire : entretien avec le N+1, formation / recadrage, suivi rapproché.',
+    NiveauPerformance.aAmeliorer =>
+        'Point d\'amélioration avec le N+1 : fixer des objectifs et réévaluer prochainement.',
+    NiveauPerformance.bien =>
+        'Performance satisfaisante : encourager l\'employé à maintenir ce niveau.',
+    NiveauPerformance.excellent =>
+        'Valoriser : féliciter l\'employé, envisager une prime ou une mise en avant.',
+  };
+}
+
+/// Niveau à partir d'une note finale (null si aucune évaluation).
+NiveauPerformance? niveauFromNote(double? note) {
+  if (note == null) return null;
+  if (note < kNoteFaibleSeuil)   return NiveauPerformance.faible;
+  if (note < 14)                 return NiveauPerformance.aAmeliorer;
+  if (note < kNoteExcellentSeuil) return NiveauPerformance.bien;
+  return NiveauPerformance.excellent;
+}
 
 /// Note pondérée finale : 40% superviseur + 60% client.
 /// Si une seule évaluation existe, on retourne celle-ci (note partielle).

@@ -45,6 +45,19 @@ final remindersProvider = FutureProvider<List<Reminder>>((ref) async {
         date: DateTime.now(),
       ));
     }
+
+    // Valorisation : employé excellent à mettre en avant
+    if (e.aValoriser) {
+      reminders.add(Reminder(
+        titre: 'À valoriser — ${e.nomComplet}',
+        sousTitre: 'Excellente évaluation : féliciter / récompenser'
+            '${e.superviseurNom != null ? ' (${e.superviseurNom})' : ''}',
+        type: ReminderType.valorisation,
+        severite: ReminderSeverite.info,
+        employeId: e.id,
+        date: DateTime.now(),
+      ));
+    }
   }
 
   // Visites terrain : affectations en cours dont J+15 est dépassé sans

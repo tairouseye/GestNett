@@ -82,7 +82,8 @@ class Employe {
   final String? superviseurId;
   final String? superviseurNom;     // dénormalisé via join
   final DateTime? visiteMedicaleLe;  // date effectuée (null = non faite)
-  final bool aSuivre;                // signalé par une note d'évaluation faible
+  final bool aSuivre;                // note d'évaluation faible (< 10/20)
+  final bool aValoriser;             // note d'évaluation excellente (≥ 16/20)
   final String? planAction;          // rempli par le N+1
   final DateTime createdAt;
 
@@ -107,6 +108,7 @@ class Employe {
     this.superviseurNom,
     this.visiteMedicaleLe,
     this.aSuivre = false,
+    this.aValoriser = false,
     this.planAction,
     required this.createdAt,
   });
@@ -152,8 +154,9 @@ class Employe {
         visiteMedicaleLe: m['visite_medicale_le'] != null
             ? DateTime.parse(m['visite_medicale_le'] as String)
             : null,
-        aSuivre:    m['a_suivre'] as bool? ?? false,
-        planAction: m['plan_action'] as String?,
+        aSuivre:     m['a_suivre'] as bool? ?? false,
+        aValoriser:  m['a_valoriser'] as bool? ?? false,
+        planAction:  m['plan_action'] as String?,
         createdAt: DateTime.parse(m['created_at'] as String),
       );
 

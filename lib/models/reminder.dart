@@ -1,6 +1,6 @@
 enum ReminderSeverite { info, warning, danger }
 
-enum ReminderType { visiteMedicale, visiteTerrain, suiviQualite }
+enum ReminderType { visiteMedicale, visiteTerrain, suiviQualite, valorisation }
 
 /// Rappel in-app calculé à la volée (pas stocké en base).
 class Reminder {

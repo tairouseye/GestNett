@@ -61,10 +61,11 @@ class EvaluationService {
       }
     }
     final note = noteFinale(scoreSuperviseur: sup, scoreClient: cli);
-    final aSuivre = note != null && note < kNoteFaibleSeuil;
+    final aSuivre    = note != null && note < kNoteFaibleSeuil;
+    final aValoriser = note != null && note >= kNoteExcellentSeuil;
     await _db
         .from('employes')
-        .update({'a_suivre': aSuivre})
+        .update({'a_suivre': aSuivre, 'a_valoriser': aValoriser})
         .eq('id', employeId)
         .eq('created_by', _uid);
   }
