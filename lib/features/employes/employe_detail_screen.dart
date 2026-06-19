@@ -30,6 +30,7 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
   List<Affectation> _affectations = [];
   List<Evaluation> _evaluations = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -38,18 +39,24 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
-    final results = await Future.wait([
-      EmployeService().getById(widget.employeId),
-      EmployeService().getByEmploye(widget.employeId),
-      EvaluationService().getByEmploye(widget.employeId),
-    ]);
-    if (mounted) setState(() {
-      _employe      = results[0] as Employe?;
-      _affectations = results[1] as List<Affectation>;
-      _evaluations  = results[2] as List<Evaluation>;
-      _loading      = false;
-    });
+    setState(() { _loading = true; _error = null; });
+    try {
+      final employe     = await EmployeService().getById(widget.employeId);
+      final affectations = await EmployeService().getByEmploye(widget.employeId);
+      // Les évaluations sont optionnelles : une erreur ici ne doit pas bloquer la fiche.
+      List<Evaluation> evaluations = [];
+      try {
+        evaluations = await EvaluationService().getByEmploye(widget.employeId);
+      } catch (_) {/* table évaluations indisponible : on ignore */}
+      if (mounted) setState(() {
+        _employe      = employe;
+        _affectations = affectations;
+        _evaluations  = evaluations;
+        _loading      = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
   }
 
   Future<void> _evaluer(EvaluationType type) async {
@@ -219,7 +226,25 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _employe == null
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, color: AppColors.red, size: 48),
+                        const SizedBox(height: 12),
+                        Text('Erreur de chargement\n$_error',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.red)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: _load, child: const Text('Réessayer')),
+                      ],
+                    ),
+                  ),
+                )
+              : _employe == null
               ? const Center(child: Text('Employé introuvable'))
               : RefreshIndicator(
                   onRefresh: _load,
