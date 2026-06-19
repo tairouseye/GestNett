@@ -1,23 +1,92 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../models/reminder.dart';
+import '../../providers/reminders_provider.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reminders = ref.watch(remindersProvider);
+
     return Scaffold(
+      backgroundColor: AppColors.g50,
       appBar: AppBar(title: const Text('Notifications')),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.notifications_outlined, size: 64, color: AppColors.s200),
-            SizedBox(height: 12),
-            Text('Aucune notification', style: TextStyle(color: AppColors.s400)),
-          ],
-        ),
+      body: reminders.when(
+        data: (list) => list.isEmpty
+            ? const _EmptyState()
+            : RefreshIndicator(
+                onRefresh: () async => ref.invalidate(remindersProvider),
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => _ReminderTile(
+                    reminder: list[i],
+                    onTap: () {
+                      final id = list[i].employeId;
+                      if (id != null) context.go('/employes/$id');
+                    },
+                  ),
+                ),
+              ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Erreur : $e')),
       ),
     );
   }
+}
+
+class _ReminderTile extends StatelessWidget {
+  final Reminder reminder;
+  final VoidCallback onTap;
+  const _ReminderTile({required this.reminder, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (reminder.severite) {
+      ReminderSeverite.danger  => AppColors.red,
+      ReminderSeverite.warning => AppColors.orange,
+      ReminderSeverite.info    => AppColors.blue,
+    };
+    final icon = switch (reminder.type) {
+      ReminderType.visiteMedicale => Icons.medical_services_outlined,
+    };
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: color.withValues(alpha: 0.12),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        title: Text(reminder.titre,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        subtitle: Text(reminder.sousTitre,
+            style: TextStyle(fontSize: 12, color: color)),
+        trailing: const Icon(Icons.chevron_right, color: AppColors.s300),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+  @override
+  Widget build(BuildContext context) => const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_outline, size: 64, color: AppColors.g400),
+            SizedBox(height: 12),
+            Text('Aucune notification', style: TextStyle(color: AppColors.s400)),
+            SizedBox(height: 4),
+            Text('Tout est à jour 🎉',
+                style: TextStyle(color: AppColors.s300, fontSize: 12)),
+          ],
+        ),
+      );
 }

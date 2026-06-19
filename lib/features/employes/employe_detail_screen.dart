@@ -46,6 +46,18 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
     });
   }
 
+  Future<void> _marquerVisite() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked == null) return;
+    await EmployeService().marquerVisiteMedicale(widget.employeId, picked);
+    await _load();
+  }
+
   Future<void> _affecter() async {
     final markets = await MarketService().getActive();
     if (!mounted) return;
@@ -146,6 +158,11 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
                     children: [
                       _InfoCard(employe: _employe!),
                       const SizedBox(height: 12),
+                      _VisiteMedicaleCard(
+                        employe: _employe!,
+                        onMarquer: _marquerVisite,
+                      ),
+                      const SizedBox(height: 12),
                       _FichePaieCard(
                         employe: _employe!,
                         affectations: _affectations,
@@ -160,6 +177,65 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+}
+
+class _VisiteMedicaleCard extends StatelessWidget {
+  final Employe employe;
+  final VoidCallback onMarquer;
+  const _VisiteMedicaleCard({required this.employe, required this.onMarquer});
+
+  @override
+  Widget build(BuildContext context) {
+    final faite = employe.visiteMedicaleFaite;
+    final enRetard = employe.visiteMedicaleEnRetard;
+    final color = faite
+        ? AppColors.g600
+        : enRetard
+            ? AppColors.red
+            : AppColors.orange;
+    final String texte;
+    if (faite) {
+      texte = 'Effectuée le ${DateFormat('dd/MM/yyyy').format(employe.visiteMedicaleLe!)}';
+    } else if (enRetard) {
+      texte = 'En retard — était à faire avant le '
+          '${DateFormat('dd/MM/yyyy').format(employe.visiteMedicaleEcheance)}';
+    } else {
+      texte = 'À effectuer avant le '
+          '${DateFormat('dd/MM/yyyy').format(employe.visiteMedicaleEcheance)}';
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              faite ? Icons.verified_outlined : Icons.medical_services_outlined,
+              color: color,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Visite médicale de démarrage',
+                      style: TextStyle(fontSize: 12, color: AppColors.s400)),
+                  const SizedBox(height: 2),
+                  Text(texte,
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: onMarquer,
+              child: Text(faite ? 'Modifier' : 'Marquer effectuée',
+                  style: const TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -207,6 +283,8 @@ class _InfoCard extends StatelessWidget {
             _row('Catégorie', employe.categorie!.label, icon: Icons.groups_outlined),
           if (employe.matricule != null)
             _row('Matricule', employe.matricule!, icon: Icons.badge_outlined),
+          if (employe.superviseurNom != null)
+            _row('Superviseur (N+1)', employe.superviseurNom!, icon: Icons.person_pin_outlined),
           if (employe.telephone != null)
             _row('Téléphone', employe.telephone!, icon: Icons.phone_outlined),
           if (employe.dateEmbauche != null)

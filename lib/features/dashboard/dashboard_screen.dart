@@ -9,6 +9,7 @@ import '../../core/widgets/logout_button.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
+import '../../providers/reminders_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -50,7 +51,13 @@ class DashboardScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
+            icon: Builder(builder: (_) {
+              final count = ref.watch(reminderCountProvider);
+              final icon = const Icon(Icons.notifications_outlined);
+              return count > 0
+                  ? Badge(label: Text('$count'), child: icon)
+                  : icon;
+            }),
             onPressed: () => context.go('/notifications'),
           ),
           const LogoutButton(),

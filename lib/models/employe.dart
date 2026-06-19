@@ -79,6 +79,9 @@ class Employe {
   final DateTime? dateEmbauche;
   final EmployeStatut statut;
   final String? notes;
+  final String? superviseurId;
+  final String? superviseurNom;     // dénormalisé via join
+  final DateTime? visiteMedicaleLe;  // date effectuée (null = non faite)
   final DateTime createdAt;
 
   const Employe({
@@ -98,10 +101,19 @@ class Employe {
     this.dateEmbauche,
     this.statut = EmployeStatut.actif,
     this.notes,
+    this.superviseurId,
+    this.superviseurNom,
+    this.visiteMedicaleLe,
     required this.createdAt,
   });
 
   String get nomComplet => prenom != null ? '$prenom $nom' : nom;
+
+  // ── Visite médicale de démarrage (échéance = enregistrement + 15 jours) ──
+  DateTime get visiteMedicaleEcheance => createdAt.add(const Duration(days: 15));
+  bool get visiteMedicaleFaite => visiteMedicaleLe != null;
+  bool get visiteMedicaleEnRetard =>
+      !visiteMedicaleFaite && DateTime.now().isAfter(visiteMedicaleEcheance);
 
   double get fraisGestion => fraisGestionType == 'pct'
       ? salaireMensuel * fraisGestionPct / 100
@@ -129,8 +141,21 @@ class Employe {
             : null,
         statut:    EmployeStatutExt.fromValue(m['statut'] as String? ?? 'actif'),
         notes:     m['notes'] as String?,
+        superviseurId:  m['superviseur_id'] as String?,
+        superviseurNom: m['superviseur'] != null
+            ? _buildNom(m['superviseur'] as Map<String, dynamic>)
+            : null,
+        visiteMedicaleLe: m['visite_medicale_le'] != null
+            ? DateTime.parse(m['visite_medicale_le'] as String)
+            : null,
         createdAt: DateTime.parse(m['created_at'] as String),
       );
+
+  static String _buildNom(Map<String, dynamic> e) {
+    final prenom = e['prenom'] as String?;
+    final nom    = e['nom'] as String? ?? '';
+    return prenom != null ? '$prenom $nom' : nom;
+  }
 
   Map<String, dynamic> toInsertMap() => {
         'nom':                   nom,
@@ -148,6 +173,9 @@ class Employe {
         if (dateEmbauche != null)'date_embauche':        dateEmbauche!.toIso8601String().substring(0, 10),
         'statut':                statut.value,
         if (notes != null)       'notes':                notes,
+        'superviseur_id':        superviseurId,
+        if (visiteMedicaleLe != null)
+          'visite_medicale_le':  visiteMedicaleLe!.toIso8601String().substring(0, 10),
       };
 }
 

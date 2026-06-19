@@ -42,6 +42,11 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   bool _metierAutre = false;   // true => saisie libre dans _posteCtrl
   static const _autre = 'Autre…';
 
+  // Suivi RH
+  List<Employe> _superviseurs = [];
+  String? _superviseurId;
+  DateTime? _visiteMedicaleLe;
+
   bool get _isEdit => widget.employeId != null;
 
   double get _brut         => double.tryParse(_salaireCtrl.text.replaceAll(' ', '')) ?? 0;
@@ -55,11 +60,17 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSuperviseurs();
     if (_isEdit) {
       _loadExisting();
     } else {
       _generateMatricule();
     }
+  }
+
+  Future<void> _loadSuperviseurs() async {
+    final list = await EmployeService().getSuperviseurs();
+    if (mounted) setState(() => _superviseurs = list);
   }
 
   Future<void> _generateMatricule() async {
@@ -102,6 +113,8 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         _notesCtrl.text        = e.notes ?? '';
         _dateEmbauche          = e.dateEmbauche;
         _statut                = e.statut;
+        _superviseurId         = e.superviseurId;
+        _visiteMedicaleLe      = e.visiteMedicaleLe;
         _init = false;
       });
     }
@@ -137,6 +150,8 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         dateEmbauche:         _dateEmbauche,
         statut:               _statut,
         notes:                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        superviseurId:        _superviseurId,
+        visiteMedicaleLe:     _visiteMedicaleLe,
         createdAt:            _existing?.createdAt ?? DateTime.now(),
       );
 
@@ -451,6 +466,84 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                       )).toList(),
                       onChanged: (v) { if (v != null) setState(() => _statut = v); },
                     ),
+
+                    const SizedBox(height: 20),
+                    // ── Suivi RH ─────────────────────────────────────────
+                    _section('Suivi RH', Icons.supervisor_account_outlined),
+                    const SizedBox(height: 12),
+
+                    // N+1 (superviseur)
+                    DropdownButtonFormField<String?>(
+                      value: _superviseurs.any((s) => s.id == _superviseurId)
+                          ? _superviseurId
+                          : null,
+                      isExpanded: true,
+                      decoration: _deco('Superviseur (N+1)', prefixIcon: Icons.person_pin_outlined),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Aucun')),
+                        ..._superviseurs.map((s) => DropdownMenuItem(
+                              value: s.id,
+                              child: Text(s.nomComplet),
+                            )),
+                      ],
+                      onChanged: (v) => setState(() => _superviseurId = v),
+                    ),
+                    if (_superviseurs.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 6, left: 4),
+                        child: Text(
+                          'Astuce : créez d\'abord des employés en catégorie « Supervision ».',
+                          style: TextStyle(fontSize: 11, color: AppColors.s400),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+
+                    // Visite médicale de démarrage
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _visiteMedicaleLe ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) setState(() => _visiteMedicaleLe = picked);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: InputDecorator(
+                        decoration: _deco('Visite médicale effectuée le',
+                            prefixIcon: Icons.medical_services_outlined),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _visiteMedicaleLe != null
+                                    ? DateFormat('dd/MM/yyyy').format(_visiteMedicaleLe!)
+                                    : 'Non effectuée',
+                                style: TextStyle(
+                                  color: _visiteMedicaleLe != null ? Colors.black87 : AppColors.s300,
+                                ),
+                              ),
+                            ),
+                            if (_visiteMedicaleLe != null)
+                              GestureDetector(
+                                onTap: () => setState(() => _visiteMedicaleLe = null),
+                                child: const Icon(Icons.clear, size: 18, color: AppColors.s400),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_visiteMedicaleLe == null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6, left: 4),
+                        child: Text(
+                          _isEdit && _existing != null
+                              ? 'À effectuer avant le ${DateFormat('dd/MM/yyyy').format(_existing!.visiteMedicaleEcheance)}'
+                              : 'À effectuer dans les 15 jours suivant l\'enregistrement.',
+                          style: const TextStyle(fontSize: 11, color: AppColors.orange),
+                        ),
+                      ),
 
                     const SizedBox(height: 20),
                     // ── Notes ────────────────────────────────────────────

@@ -9,10 +9,12 @@ class EmployeService {
 
   // ── Employés ──────────────────────────────────────────────────────────────
 
+  static const _selectWithSup = '*, superviseur:superviseur_id(nom, prenom)';
+
   Future<List<Employe>> getAll() async {
     final data = await _db
         .from('employes')
-        .select()
+        .select(_selectWithSup)
         .eq('created_by', _uid)
         .order('nom');
     return (data as List).map((m) => Employe.fromMap(m)).toList();
@@ -21,8 +23,20 @@ class EmployeService {
   Future<List<Employe>> getActifs() async {
     final data = await _db
         .from('employes')
+        .select(_selectWithSup)
+        .eq('created_by', _uid)
+        .eq('statut', 'actif')
+        .order('nom');
+    return (data as List).map((m) => Employe.fromMap(m)).toList();
+  }
+
+  /// Employés de catégorie supervision (pour choisir le N+1).
+  Future<List<Employe>> getSuperviseurs() async {
+    final data = await _db
+        .from('employes')
         .select()
         .eq('created_by', _uid)
+        .eq('categorie', 'supervision')
         .eq('statut', 'actif')
         .order('nom');
     return (data as List).map((m) => Employe.fromMap(m)).toList();
@@ -31,12 +45,21 @@ class EmployeService {
   Future<Employe?> getById(String id) async {
     final data = await _db
         .from('employes')
-        .select()
+        .select(_selectWithSup)
         .eq('id', id)
         .eq('created_by', _uid)
         .maybeSingle();
     if (data == null) return null;
     return Employe.fromMap(data);
+  }
+
+  /// Enregistre la date de la visite médicale de démarrage.
+  Future<void> marquerVisiteMedicale(String id, DateTime date) async {
+    await _db
+        .from('employes')
+        .update({'visite_medicale_le': date.toIso8601String().substring(0, 10)})
+        .eq('id', id)
+        .eq('created_by', _uid);
   }
 
   Future<Employe> create(Employe employe) async {
