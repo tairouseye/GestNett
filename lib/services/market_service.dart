@@ -24,6 +24,16 @@ class MarketService {
     return (data as List).map((m) => Market.fromMap(m)).toList();
   }
 
+  Future<List<Market>> getByClient(String clientId) async {
+    final data = await _supabase
+        .from('markets')
+        .select('*, clients(nom)')
+        .eq('created_by', _uid)
+        .eq('client_id', clientId)
+        .order('created_at', ascending: false);
+    return (data as List).map((m) => Market.fromMap(m)).toList();
+  }
+
   Future<Market?> getById(String id) async {
     final data = await _supabase
         .from('markets')

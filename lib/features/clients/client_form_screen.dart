@@ -21,6 +21,8 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
   final _emailCtrl  = TextEditingController();
   final _adresseCtrl = TextEditingController();
   final _nineaCtrl  = TextEditingController();
+  final _notesCtrl  = TextEditingController();
+  String? _type; // 'particulier' | 'entreprise'
   bool _loading = false;
 
   @override
@@ -39,6 +41,8 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
       _emailCtrl.text   = c.email ?? '';
       _adresseCtrl.text = c.adresse ?? '';
       _nineaCtrl.text   = c.ninea ?? '';
+      _notesCtrl.text   = c.notes ?? '';
+      _type             = c.type;
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -47,6 +51,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
   void dispose() {
     _nomCtrl.dispose(); _contactCtrl.dispose(); _telCtrl.dispose();
     _emailCtrl.dispose(); _adresseCtrl.dispose(); _nineaCtrl.dispose();
+    _notesCtrl.dispose();
     super.dispose();
   }
 
@@ -54,13 +59,17 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
 
+    final entreprise = _type == 'entreprise';
     final fields = {
       'nom': _nomCtrl.text.trim(),
+      'type': _type,
       if (_contactCtrl.text.isNotEmpty) 'contact': _contactCtrl.text.trim(),
       if (_telCtrl.text.isNotEmpty) 'telephone': _telCtrl.text.trim(),
       if (_emailCtrl.text.isNotEmpty) 'email': _emailCtrl.text.trim(),
       if (_adresseCtrl.text.isNotEmpty) 'adresse': _adresseCtrl.text.trim(),
-      if (_nineaCtrl.text.isNotEmpty) 'ninea': _nineaCtrl.text.trim(),
+      // NINEA réservé aux entreprises
+      if (entreprise && _nineaCtrl.text.isNotEmpty) 'ninea': _nineaCtrl.text.trim(),
+      if (_notesCtrl.text.isNotEmpty) 'notes': _notesCtrl.text.trim(),
     };
 
     try {
@@ -97,6 +106,17 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
+                    // Type de client
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'particulier', label: Text('Particulier'), icon: Icon(Icons.person_outline)),
+                        ButtonSegment(value: 'entreprise', label: Text('Entreprise'), icon: Icon(Icons.business_outlined)),
+                      ],
+                      selected: _type == null ? <String>{} : {_type!},
+                      emptySelectionAllowed: true,
+                      onSelectionChanged: (s) => setState(() => _type = s.isEmpty ? null : s.first),
+                    ),
+                    const SizedBox(height: 12),
                     _field(_nomCtrl, AppStrings.nomSociete, required: true,
                         icon: Icons.business_outlined),
                     const SizedBox(height: 12),
@@ -111,8 +131,13 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                         icon: Icons.email_outlined),
                     const SizedBox(height: 12),
                     _field(_adresseCtrl, AppStrings.adresse, icon: Icons.location_on_outlined),
+                    // NINEA réservé aux entreprises
+                    if (_type == 'entreprise') ...[
+                      const SizedBox(height: 12),
+                      _field(_nineaCtrl, AppStrings.ninea, icon: Icons.badge_outlined),
+                    ],
                     const SizedBox(height: 12),
-                    _field(_nineaCtrl, AppStrings.ninea, icon: Icons.badge_outlined),
+                    _field(_notesCtrl, 'Notes', icon: Icons.notes_outlined),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,

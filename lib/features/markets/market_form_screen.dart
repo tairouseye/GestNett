@@ -8,7 +8,8 @@ import '../../services/market_service.dart';
 
 class MarketFormScreen extends StatefulWidget {
   final String? marketId;
-  const MarketFormScreen({super.key, this.marketId});
+  final String? initialClientId;
+  const MarketFormScreen({super.key, this.marketId, this.initialClientId});
 
   @override
   State<MarketFormScreen> createState() => _MarketFormScreenState();
@@ -32,6 +33,7 @@ class _MarketFormScreenState extends State<MarketFormScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedClientId = widget.initialClientId;
     _loadClients();
     if (_isEdit) _loadExisting();
   }

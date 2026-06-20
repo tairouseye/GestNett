@@ -81,7 +81,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: 'new',
-                builder: (_, __) => const MarketFormScreen(),
+                builder: (_, state) => MarketFormScreen(
+                  initialClientId: state.uri.queryParameters['clientId'],
+                ),
               ),
               GoRoute(
                 path: ':id',
