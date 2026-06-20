@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/employe.dart';
 import '../../services/employe_service.dart';
+import '../../services/storage_service.dart';
 
 class EmployeFormScreen extends StatefulWidget {
   final String? employeId;
@@ -26,6 +28,7 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   final _prenomCtrl        = TextEditingController();
   final _posteCtrl         = TextEditingController();
   final _telCtrl           = TextEditingController();
+  final _adresseCtrl       = TextEditingController();
   final _salaireCtrl       = TextEditingController();
   final _partSalarialeCtrl = TextEditingController();
   final _partPatronaleCtrl = TextEditingController();
@@ -46,6 +49,10 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   List<Employe> _superviseurs = [];
   String? _superviseurId;
   DateTime? _visiteMedicaleLe;
+
+  // Photo
+  String? _photoUrl;
+  bool _uploadingPhoto = false;
 
   bool get _isEdit => widget.employeId != null;
 
@@ -103,6 +110,8 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
           }
         }
         _telCtrl.text          = e.telephone ?? '';
+        _adresseCtrl.text      = e.adresse ?? '';
+        _photoUrl              = e.photoUrl;
         _salaireCtrl.text       = e.salaireMensuel.round().toString();
         _partSalarialeCtrl.text = e.partSalariale.round().toString();
         _partPatronaleCtrl.text = e.partPatronale.round().toString();
@@ -142,6 +151,8 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         poste:                _posteCtrl.text.trim().isEmpty ? null : _posteCtrl.text.trim(),
         categorie:            _categorie,
         telephone:            _telCtrl.text.trim().isEmpty ? null : _telCtrl.text.trim(),
+        adresse:              _adresseCtrl.text.trim().isEmpty ? null : _adresseCtrl.text.trim(),
+        photoUrl:             _photoUrl,
         salaireMensuel:       _brut,
         partSalariale:        _salariale,
         partPatronale:        _patronale,
@@ -176,10 +187,30 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   @override
   void dispose() {
     _matriculeCtrl.dispose(); _nomCtrl.dispose(); _prenomCtrl.dispose();
-    _posteCtrl.dispose(); _telCtrl.dispose(); _salaireCtrl.dispose();
+    _posteCtrl.dispose(); _telCtrl.dispose(); _adresseCtrl.dispose();
+    _salaireCtrl.dispose();
     _partSalarialeCtrl.dispose(); _partPatronaleCtrl.dispose();
     _fraisGestionCtrl.dispose(); _notesCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickPhoto() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+    if (result == null || result.files.single.bytes == null) return;
+    final bytes = result.files.single.bytes!;
+    final ext   = result.files.single.extension ?? 'jpg';
+    setState(() => _uploadingPhoto = true);
+    try {
+      final url = await StorageService.uploadEmployePhoto(bytes, ext);
+      if (mounted) setState(() { _photoUrl = url; _uploadingPhoto = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingPhoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur upload photo : $e'), backgroundColor: AppColors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -200,6 +231,52 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+
+                    // ── Photo ─────────────────────────────────────────────
+                    Center(
+                      child: GestureDetector(
+                        onTap: _uploadingPhoto ? null : _pickPhoto,
+                        child: Stack(
+                          alignment: Alignment.bottomRight,
+                          children: [
+                            CircleAvatar(
+                              radius: 44,
+                              backgroundColor: AppColors.g100,
+                              backgroundImage: (_photoUrl != null && _photoUrl!.isNotEmpty)
+                                  ? NetworkImage(_photoUrl!)
+                                  : null,
+                              child: _uploadingPhoto
+                                  ? const CircularProgressIndicator(strokeWidth: 2)
+                                  : (_photoUrl == null || _photoUrl!.isEmpty)
+                                      ? const Icon(Icons.add_a_photo_outlined, color: AppColors.g600, size: 28)
+                                      : null,
+                            ),
+                            if (_photoUrl != null && _photoUrl!.isNotEmpty && !_uploadingPhoto)
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.g600, shape: BoxShape.circle),
+                                child: const Icon(Icons.edit, size: 14, color: Colors.white),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Center(
+                      child: Text(
+                        _photoUrl == null ? 'Ajouter une photo' : 'Modifier la photo',
+                        style: const TextStyle(fontSize: 11, color: AppColors.s400),
+                      ),
+                    ),
+                    if (_photoUrl != null && !_uploadingPhoto)
+                      Center(
+                        child: TextButton(
+                          onPressed: () => setState(() => _photoUrl = null),
+                          child: const Text('Retirer', style: TextStyle(fontSize: 11, color: AppColors.red)),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
 
                     // ── Matricule ─────────────────────────────────────────
                     _section('Matricule', Icons.badge_outlined),
@@ -308,6 +385,8 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                     ],
                     const SizedBox(height: 12),
                     _field(_telCtrl, 'Téléphone', keyboard: TextInputType.phone),
+                    const SizedBox(height: 12),
+                    _field(_adresseCtrl, 'Adresse', hint: 'Quartier, ville...', maxLines: 2),
 
                     const SizedBox(height: 20),
                     // ── Contrat ──────────────────────────────────────────

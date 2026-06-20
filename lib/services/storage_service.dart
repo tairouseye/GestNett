@@ -21,4 +21,19 @@ class StorageService {
 
     return _storage.from(bucket).getPublicUrl(path);
   }
+
+  /// Upload la photo d'un employé (bucket public 'logos', sous-dossier employes/).
+  static Future<String> uploadEmployePhoto(Uint8List bytes, String ext) async {
+    final clean = ext.toLowerCase() == 'jpg' ? 'jpeg' : ext.toLowerCase();
+    final path = '$_uid/employes/${DateTime.now().millisecondsSinceEpoch}.$clean';
+    await _storage.from('logos').uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(
+        contentType: clean == 'png' ? 'image/png' : 'image/jpeg',
+        upsert: true,
+      ),
+    );
+    return _storage.from('logos').getPublicUrl(path);
+  }
 }

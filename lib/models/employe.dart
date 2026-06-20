@@ -81,6 +81,8 @@ class Employe {
   final String? poste;
   final EmployeCategorie? categorie;
   final String? telephone;
+  final String? adresse;
+  final String? photoUrl;
   final double salaireMensuel;   // = salaire brut
   final double partSalariale;
   final double partPatronale;
@@ -106,6 +108,8 @@ class Employe {
     this.poste,
     this.categorie,
     this.telephone,
+    this.adresse,
+    this.photoUrl,
     this.salaireMensuel = 0,
     this.partSalariale = 0,
     this.partPatronale = 0,
@@ -147,6 +151,8 @@ class Employe {
         poste:                m['poste'] as String?,
         categorie:            EmployeCategorieExt.fromValue(m['categorie'] as String?),
         telephone:            m['telephone'] as String?,
+        adresse:              m['adresse'] as String?,
+        photoUrl:             m['photo_url'] as String?,
         salaireMensuel:       (m['salaire_mensuel'] as num?)?.toDouble() ?? 0,
         partSalariale:        (m['part_salariale'] as num?)?.toDouble() ?? 0,
         partPatronale:        (m['part_patronale'] as num?)?.toDouble() ?? 0,
@@ -184,6 +190,8 @@ class Employe {
         if (poste != null)       'poste':                poste,
         'categorie':             categorie?.value,
         if (telephone != null)   'telephone':            telephone,
+        'adresse':               adresse,
+        'photo_url':             photoUrl,
         'salaire_mensuel':       salaireMensuel.round(),
         'part_salariale':        partSalariale.round(),
         'part_patronale':        partPatronale.round(),

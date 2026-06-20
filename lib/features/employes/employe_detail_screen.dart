@@ -617,9 +617,14 @@ class _InfoCard extends StatelessWidget {
             CircleAvatar(
               radius: 28,
               backgroundColor: actif ? AppColors.g100 : AppColors.s100,
-              child: Text(employe.nom[0].toUpperCase(),
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold,
-                      color: actif ? AppColors.g700 : AppColors.s400)),
+              backgroundImage: (employe.photoUrl != null && employe.photoUrl!.isNotEmpty)
+                  ? NetworkImage(employe.photoUrl!)
+                  : null,
+              child: (employe.photoUrl != null && employe.photoUrl!.isNotEmpty)
+                  ? null
+                  : Text(employe.nom[0].toUpperCase(),
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold,
+                          color: actif ? AppColors.g700 : AppColors.s400)),
             ),
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -649,6 +654,8 @@ class _InfoCard extends StatelessWidget {
             _row('Superviseur (N+1)', employe.superviseurNom!, icon: Icons.person_pin_outlined),
           if (employe.telephone != null)
             _row('Téléphone', employe.telephone!, icon: Icons.phone_outlined),
+          if (employe.adresse != null)
+            _row('Adresse', employe.adresse!, icon: Icons.location_on_outlined),
           if (employe.dateEmbauche != null)
             _row('Date d\'embauche', DateFormat('dd/MM/yyyy').format(employe.dateEmbauche!),
                 icon: Icons.calendar_today_outlined),
