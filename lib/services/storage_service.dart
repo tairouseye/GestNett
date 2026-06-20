@@ -36,4 +36,23 @@ class StorageService {
     );
     return _storage.from('logos').getPublicUrl(path);
   }
+
+  /// Upload un document d'employé (bucket public 'pdfs', sous-dossier employes/).
+  static Future<String> uploadEmployeDoc(
+      Uint8List bytes, String employeId, String ext) async {
+    final clean = ext.toLowerCase();
+    final path = '$_uid/employes/$employeId/docs/${DateTime.now().millisecondsSinceEpoch}.$clean';
+    final ct = switch (clean) {
+      'pdf'         => 'application/pdf',
+      'png'         => 'image/png',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      _             => 'application/octet-stream',
+    };
+    await _storage.from('pdfs').uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(contentType: ct, upsert: true),
+    );
+    return _storage.from('pdfs').getPublicUrl(path);
+  }
 }

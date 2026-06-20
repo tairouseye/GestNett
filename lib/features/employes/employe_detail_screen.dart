@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
@@ -8,13 +9,16 @@ import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/company_settings.dart';
 import '../../models/employe.dart';
+import '../../models/employe_document.dart';
 import '../../models/evaluation.dart';
 import '../../models/market.dart';
 import '../../services/company_settings_service.dart';
 import '../../services/employe_service.dart';
+import '../../services/employe_document_service.dart';
 import '../../services/evaluation_service.dart';
 import '../../services/market_service.dart';
 import '../../services/pdf_service.dart';
+import '../../services/storage_service.dart';
 import 'evaluation_form_screen.dart';
 
 class EmployeDetailScreen extends StatefulWidget {
@@ -29,6 +33,8 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
   Employe? _employe;
   List<Affectation> _affectations = [];
   List<Evaluation> _evaluations = [];
+  List<Employe> _equipe = [];
+  List<EmployeDocument> _documents = [];
   bool _loading = true;
   String? _error;
 
@@ -48,10 +54,23 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
       try {
         evaluations = await EvaluationService().getByEmploye(widget.employeId);
       } catch (_) {/* table évaluations indisponible : on ignore */}
+      // Équipe (N-1) si l'employé encadre.
+      List<Employe> equipe = [];
+      if (employe?.categorie == EmployeCategorie.gestion ||
+          employe?.categorie == EmployeCategorie.supervision) {
+        equipe = await EmployeService().getBySuperviseur(widget.employeId);
+      }
+      // Documents (optionnels : table peut ne pas exister avant migration 010).
+      List<EmployeDocument> documents = [];
+      try {
+        documents = await EmployeDocumentService().getByEmploye(widget.employeId);
+      } catch (_) {/* table documents indisponible : on ignore */}
       if (mounted) setState(() {
         _employe      = employe;
         _affectations = affectations;
         _evaluations  = evaluations;
+        _equipe       = equipe;
+        _documents    = documents;
         _loading      = false;
       });
     } catch (e) {
@@ -111,6 +130,82 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
     );
     if (picked == null) return;
     await EmployeService().marquerVisiteMedicale(widget.employeId, picked);
+    await _load();
+  }
+
+  Future<void> _addDocument() async {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    if (result == null || result.files.single.bytes == null) return;
+    final file = result.files.single;
+    if (!mounted) return;
+
+    // Choix du type
+    String? type = 'autre';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Type de document'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: EmployeDocument.types.entries
+                .map((e) => RadioListTile<String>(
+                      dense: true,
+                      value: e.key,
+                      groupValue: type,
+                      title: Text(e.value, style: const TextStyle(fontSize: 13)),
+                      onChanged: (v) => setLocal(() => type = v),
+                    ))
+                .toList(),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Ajouter')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      final url = await StorageService.uploadEmployeDoc(
+          file.bytes!, widget.employeId, file.extension ?? 'bin');
+      await EmployeDocumentService().add(EmployeDocument(
+        id: '',
+        employeId: widget.employeId,
+        nom: file.name,
+        type: type,
+        url: url,
+        createdAt: DateTime.now(),
+      ));
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur document : $e'), backgroundColor: AppColors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteDocument(EmployeDocument doc) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer ?'),
+        content: Text('Supprimer le document « ${doc.nom} » ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await EmployeDocumentService().delete(doc.id);
     await _load();
   }
 
@@ -275,10 +370,156 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
                         onEvaluer: _evaluer,
                         onEditPlan: _editPlanAction,
                       ),
+                      if (_equipe.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _EquipeCard(
+                          equipe: _equipe,
+                          onTap: (id) async {
+                            await context.push('/employes/$id');
+                            _load();
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      _DocumentsCard(
+                        documents: _documents,
+                        onAdd: _addDocument,
+                        onOpen: (d) => launchUrl(Uri.parse(d.url),
+                            mode: LaunchMode.platformDefault),
+                        onDelete: _deleteDocument,
+                      ),
                       const SizedBox(height: 80),
                     ],
                   ),
                 ),
+    );
+  }
+}
+
+class _DocumentsCard extends StatelessWidget {
+  final List<EmployeDocument> documents;
+  final VoidCallback onAdd;
+  final void Function(EmployeDocument) onOpen;
+  final void Function(EmployeDocument) onDelete;
+  const _DocumentsCard({
+    required this.documents,
+    required this.onAdd,
+    required this.onOpen,
+    required this.onDelete,
+  });
+
+  IconData _iconFor(String nom) {
+    final n = nom.toLowerCase();
+    if (n.endsWith('.pdf')) return Icons.picture_as_pdf_outlined;
+    if (n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg')) {
+      return Icons.image_outlined;
+    }
+    return Icons.insert_drive_file_outlined;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Documents (${documents.length})',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+                TextButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.upload_file_outlined, size: 16),
+                  label: const Text('Ajouter', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+            if (documents.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('Aucun document (CNI, contrat, certificat médical...)',
+                    style: TextStyle(fontSize: 12, color: AppColors.s400)),
+              )
+            else
+              ...documents.map((d) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    onTap: () => onOpen(d),
+                    leading: Icon(_iconFor(d.nom), color: AppColors.g600),
+                    title: Text(d.nom,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(d.typeLabel, style: const TextStyle(fontSize: 11)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.red),
+                      onPressed: () => onDelete(d),
+                    ),
+                  )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EquipeCard extends StatelessWidget {
+  final List<Employe> equipe;
+  final void Function(String id) onTap;
+  const _EquipeCard({required this.equipe, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Mon équipe (${equipe.length})',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 4),
+            ...equipe.map((e) {
+              final actif = e.statut == EmployeStatut.actif;
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                onTap: () => onTap(e.id),
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.g100,
+                  backgroundImage: (e.photoUrl != null && e.photoUrl!.isNotEmpty)
+                      ? NetworkImage(e.photoUrl!)
+                      : null,
+                  child: (e.photoUrl != null && e.photoUrl!.isNotEmpty)
+                      ? null
+                      : Text(e.nom.isNotEmpty ? e.nom[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.g700)),
+                ),
+                title: Text(e.nomComplet,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                subtitle: Text(e.poste ?? '—', style: const TextStyle(fontSize: 11)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (e.aSuivre)
+                      const Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.red),
+                    if (e.aValoriser)
+                      const Icon(Icons.star_rounded, size: 14, color: AppColors.gold),
+                    if (!actif)
+                      const Text('Inactif', style: TextStyle(fontSize: 9, color: AppColors.s400)),
+                    const Icon(Icons.chevron_right, size: 16, color: AppColors.s300),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -651,7 +892,13 @@ class _InfoCard extends StatelessWidget {
           if (employe.matricule != null)
             _row('Matricule', employe.matricule!, icon: Icons.badge_outlined),
           if (employe.superviseurNom != null)
-            _row('Superviseur (N+1)', employe.superviseurNom!, icon: Icons.person_pin_outlined),
+            InkWell(
+              onTap: employe.superviseurId != null
+                  ? () => context.push('/employes/${employe.superviseurId}')
+                  : null,
+              child: _row('Superviseur (N+1)', employe.superviseurNom!,
+                  icon: Icons.person_pin_outlined),
+            ),
           if (employe.telephone != null)
             _row('Téléphone', employe.telephone!, icon: Icons.phone_outlined),
           if (employe.adresse != null)

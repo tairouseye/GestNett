@@ -42,6 +42,17 @@ class EmployeService {
     return (data as List).map((m) => Employe.fromMap(m)).toList();
   }
 
+  /// Subordonnés directs (N-1) d'un superviseur / gestionnaire.
+  Future<List<Employe>> getBySuperviseur(String superviseurId) async {
+    final data = await _db
+        .from('employes')
+        .select()
+        .eq('created_by', _uid)
+        .eq('superviseur_id', superviseurId)
+        .order('nom');
+    return (data as List).map((m) => Employe.fromMap(m)).toList();
+  }
+
   Future<Employe?> getById(String id) async {
     final data = await _db
         .from('employes')

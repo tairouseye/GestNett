@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/logout_button.dart';
+import '../../core/widgets/search_field.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/employe.dart';
 import '../../services/employe_service.dart';
@@ -17,6 +18,15 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
   List<Employe> _employes = [];
   bool _loading = true;
   EmployeCategorie? _filtre; // null = tous
+  String _query = '';
+
+  bool _match(Employe e) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase();
+    return e.nomComplet.toLowerCase().contains(q) ||
+        (e.matricule ?? '').toLowerCase().contains(q) ||
+        (e.poste ?? '').toLowerCase().contains(q);
+  }
 
   @override
   void initState() {
@@ -37,7 +47,7 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
   @override
   Widget build(BuildContext context) {
     final filtered = _employes
-        .where((e) => _filtre == null || e.categorie == _filtre)
+        .where((e) => (_filtre == null || e.categorie == _filtre) && _match(e))
         .toList();
     final actifs   = filtered.where((e) => e.statut == EmployeStatut.actif).toList();
     final inactifs = filtered.where((e) => e.statut == EmployeStatut.inactif).toList();
@@ -48,7 +58,14 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
         title: const Text('Personnel'),
         backgroundColor: AppColors.g700,
         foregroundColor: Colors.white,
-        actions: const [LogoutButton()],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.insights_outlined),
+            tooltip: 'Tableau de bord RH',
+            onPressed: () => context.push('/employes/rh'),
+          ),
+          const LogoutButton(),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -71,7 +88,17 @@ class _EmployesListScreenState extends State<EmployesListScreen> {
                     nbActifs: _employes.where((e) => e.statut == EmployeStatut.actif).length,
                     nbTotal: _employes.length,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 4),
+
+                  // ── Recherche ────────────────────────────────────────
+                  if (_employes.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SearchField(
+                        hint: 'Rechercher (nom, matricule, métier)',
+                        onChanged: (v) => setState(() => _query = v),
+                      ),
+                    ),
 
                   // ── Filtre par catégorie ─────────────────────────────
                   if (_employes.isNotEmpty)
@@ -246,13 +273,18 @@ class _EmployeCard extends StatelessWidget {
         isThreeLine: employe.matricule != null,
         leading: CircleAvatar(
           backgroundColor: actif ? AppColors.g100 : AppColors.s100,
-          child: Text(
-            employe.nom.isNotEmpty ? employe.nom[0].toUpperCase() : '?',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: actif ? AppColors.g700 : AppColors.s400,
-            ),
-          ),
+          backgroundImage: (employe.photoUrl != null && employe.photoUrl!.isNotEmpty)
+              ? NetworkImage(employe.photoUrl!)
+              : null,
+          child: (employe.photoUrl != null && employe.photoUrl!.isNotEmpty)
+              ? null
+              : Text(
+                  employe.nom.isNotEmpty ? employe.nom[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: actif ? AppColors.g700 : AppColors.s400,
+                  ),
+                ),
         ),
         title: Row(
           children: [

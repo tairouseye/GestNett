@@ -18,6 +18,7 @@ import '../../features/invoices/unpaid_screen.dart';
 import '../../features/employes/employes_list_screen.dart';
 import '../../features/employes/employe_form_screen.dart';
 import '../../features/employes/employe_detail_screen.dart';
+import '../../features/employes/rh_dashboard_screen.dart';
 import '../../features/expenses/expenses_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -114,6 +115,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/employes',
             builder: (_, __) => const EmployesListScreen(),
             routes: [
+              GoRoute(
+                path: 'rh',
+                builder: (_, __) => const RhDashboardScreen(),
+              ),
               GoRoute(
                 path: 'new',
                 builder: (_, __) => const EmployeFormScreen(),
