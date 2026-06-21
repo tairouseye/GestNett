@@ -265,10 +265,11 @@ class _ExpenseCard extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (expense.marketNumero != null)
-              Text('Marché ${expense.marketNumero}',
-                  style: TextStyle(
-                      fontSize: 11, color: AppColors.g500)),
+            Text(
+                expense.marketNumero != null
+                    ? 'Marché ${expense.marketNumero}'
+                    : 'Frais général',
+                style: const TextStyle(fontSize: 11, color: AppColors.g500)),
             if (expense.description != null &&
                 expense.description!.isNotEmpty)
               Text(expense.description!,
@@ -404,15 +405,11 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_market == null) {
-      setState(() => _error = 'Sélectionnez un marché');
-      return;
-    }
     setState(() { _saving = true; _error = null; });
     try {
       await ExpenseService().add(Expense(
         id: '',
-        marketId: _market!.id,
+        marketId: _market?.id,
         type: _type,
         montant: double.parse(_montantCtrl.text.replaceAll(' ', '')),
         description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
@@ -472,20 +469,26 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                           children: [
 
                             // ── Marché ──
-                            const Text('Marché / Contrat',
+                            const Text('Marché / Contrat (optionnel)',
                                 style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13,
                                     color: AppColors.g700)),
                             const SizedBox(height: 8),
-                            DropdownButtonFormField<Market>(
+                            DropdownButtonFormField<Market?>(
                               value: _market,
-                              hint: const Text('Sélectionner un marché'),
-                              items: _markets.map((m) => DropdownMenuItem(
-                                value: m,
-                                child: Text('${m.numero} — ${m.clientNom ?? ''}',
-                                    overflow: TextOverflow.ellipsis),
-                              )).toList(),
+                              hint: const Text('Frais général (aucun marché)'),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: null,
+                                  child: Text('Frais général (aucun marché)'),
+                                ),
+                                ..._markets.map((m) => DropdownMenuItem(
+                                  value: m,
+                                  child: Text('${m.numero} — ${m.clientNom ?? ''}',
+                                      overflow: TextOverflow.ellipsis),
+                                )),
+                              ],
                               onChanged: (v) => setState(() => _market = v),
                               decoration: const InputDecoration(
                                 prefixIcon: Icon(Icons.business_center_outlined),

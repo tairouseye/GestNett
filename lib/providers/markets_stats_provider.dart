@@ -37,7 +37,9 @@ final marketsStatsProvider = FutureProvider<Map<String, MarketStat>>((ref) async
     enc[m] = (enc[m] ?? 0) + (paid[i.id] ?? 0);
   }
   for (final e in expenses) {
-    dep[e.marketId] = (dep[e.marketId] ?? 0) + e.montant;
+    if (e.marketId != null) {
+      dep[e.marketId!] = (dep[e.marketId!] ?? 0) + e.montant;
+    }
   }
 
   final keys = {...fac.keys, ...dep.keys};
