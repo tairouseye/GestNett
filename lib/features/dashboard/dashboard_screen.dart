@@ -118,14 +118,16 @@ class _KpiGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.5,
-      children: [
+    return LayoutBuilder(builder: (context, constraints) {
+      final cols = (constraints.maxWidth / 200).floor().clamp(2, 4);
+      return GridView.count(
+        crossAxisCount: cols,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.5,
+        children: [
         _KpiCard(
           label: 'Marchés actifs',
           value: stats.marchesActifs.toString(),
@@ -179,8 +181,9 @@ class _KpiGrid extends StatelessWidget {
           unit: 'factures',
           onTap: () => context.go('/unpaid'),
         ),
-      ],
-    );
+        ],
+      );
+    });
   }
 }
 
