@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../models/employe.dart';
+import '../models/market.dart';
 import '../models/reminder.dart';
 import '../services/employe_service.dart';
 import '../services/evaluation_service.dart';
+import '../services/market_service.dart';
 
 /// Rappels in-app calculés à la volée à partir des données employés.
 /// - Visites médicales de démarrage dues / en retard
@@ -75,6 +77,29 @@ final remindersProvider = FutureProvider<List<Reminder>>((ref) async {
         severite: ReminderSeverite.warning,
         employeId: a.employeId,
         date: echeance,
+      ));
+    }
+  }
+
+  // Échéances de marchés : « en cours » dont la date de fin approche (≤ 7 j) ou
+  // est dépassée.
+  final markets = await MarketService().getAll();
+  for (final m in markets) {
+    if (m.statut != MarketStatut.enCours || m.dateFin == null) continue;
+    final jours = m.dateFin!.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (jours <= 7) {
+      final depasse = jours < 0;
+      reminders.add(Reminder(
+        titre: 'Échéance marché — ${m.numero}',
+        sousTitre: depasse
+            ? 'Terminé depuis ${-jours} j (${m.clientNom ?? ''}) — à clôturer/renouveler'
+            : (jours == 0
+                ? 'Se termine aujourd\'hui (${m.clientNom ?? ''})'
+                : 'Se termine dans $jours j (${m.clientNom ?? ''})'),
+        type: ReminderType.echeanceMarche,
+        severite: depasse ? ReminderSeverite.danger : ReminderSeverite.warning,
+        route: '/markets/${m.id}',
+        date: m.dateFin,
       ));
     }
   }

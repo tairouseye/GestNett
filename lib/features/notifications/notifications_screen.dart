@@ -27,8 +27,8 @@ class NotificationsScreen extends ConsumerWidget {
                   itemBuilder: (_, i) => _ReminderTile(
                     reminder: list[i],
                     onTap: () {
-                      final id = list[i].employeId;
-                      if (id != null) context.go('/employes/$id');
+                      final t = list[i].target;
+                      if (t != null) context.go(t);
                     },
                   ),
                 ),
@@ -59,6 +59,7 @@ class _ReminderTile extends StatelessWidget {
       ReminderType.visiteTerrain  => Icons.assignment_outlined,
       ReminderType.suiviQualite   => Icons.warning_amber_outlined,
       ReminderType.valorisation   => Icons.star_outline,
+      ReminderType.echeanceMarche => Icons.event_busy_outlined,
     };
     return Card(
       margin: EdgeInsets.zero,

@@ -11,6 +11,7 @@ import '../../features/clients/client_form_screen.dart';
 import '../../features/markets/markets_list_screen.dart';
 import '../../features/markets/market_detail_screen.dart';
 import '../../features/markets/market_form_screen.dart';
+import '../../features/markets/markets_dashboard_screen.dart';
 import '../../features/invoices/invoices_list_screen.dart';
 import '../../features/invoices/invoice_wizard_screen.dart';
 import '../../features/invoices/invoice_detail_screen.dart';
@@ -79,6 +80,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/markets',
             builder: (_, __) => const MarketsListScreen(),
             routes: [
+              GoRoute(
+                path: 'dashboard',
+                builder: (_, __) => const MarketsDashboardScreen(),
+              ),
               GoRoute(
                 path: 'new',
                 builder: (_, state) => MarketFormScreen(

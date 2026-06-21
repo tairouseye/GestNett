@@ -307,6 +307,51 @@ class _BilanCard extends StatelessWidget {
                 ),
               ],
             ),
+
+            // Avancement de facturation (facturé vs contrat)
+            if (montantTotal > 0) ...[
+              const SizedBox(height: 14),
+              Builder(builder: (_) {
+                final pct = (totalFacture / montantTotal);
+                final reste = montantTotal - totalFacture;
+                final over = totalFacture > montantTotal;
+                final barColor = over ? AppColors.red : AppColors.blue;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Avancement facturation',
+                            style: TextStyle(fontSize: 12, color: AppColors.s500)),
+                        Text('${(pct * 100).toStringAsFixed(0)} %',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.bold, color: barColor)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: pct.clamp(0, 1).toDouble(),
+                        minHeight: 8,
+                        backgroundColor: AppColors.s100,
+                        color: barColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      over
+                          ? 'Sur-facturation de ${Formatters.fcfa(totalFacture - montantTotal)}'
+                          : 'Reste à facturer : ${Formatters.fcfa(reste)}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: over ? AppColors.red : AppColors.s400),
+                    ),
+                  ],
+                );
+              }),
+            ],
           ],
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
@@ -6,20 +7,26 @@ import '../../core/widgets/logout_button.dart';
 import '../../core/widgets/search_field.dart';
 import '../../models/market.dart';
 import '../../services/market_service.dart';
+import '../../providers/markets_stats_provider.dart';
 
-class MarketsListScreen extends StatefulWidget {
+enum _Sort { recent, montant }
+
+class MarketsListScreen extends ConsumerStatefulWidget {
   const MarketsListScreen({super.key});
 
   @override
-  State<MarketsListScreen> createState() => _MarketsListScreenState();
+  ConsumerState<MarketsListScreen> createState() => _MarketsListScreenState();
 }
 
-class _MarketsListScreenState extends State<MarketsListScreen> {
+class _MarketsListScreenState extends ConsumerState<MarketsListScreen> {
   List<Market> _markets = [];
   bool _loading = true;
   String _query = '';
+  MarketStatut? _statutFiltre;
+  _Sort _sort = _Sort.recent;
 
   bool _match(Market m) {
+    if (_statutFiltre != null && m.statut != _statutFiltre) return false;
     if (_query.isEmpty) return true;
     final q = _query.toLowerCase();
     return (m.clientNom ?? '').toLowerCase().contains(q) ||
@@ -41,8 +48,29 @@ class _MarketsListScreenState extends State<MarketsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final stats = ref.watch(marketsStatsProvider).valueOrNull ?? {};
     return Scaffold(
-      appBar: AppBar(title: const Text('Marchés'), actions: const [LogoutButton()]),
+      appBar: AppBar(
+        title: const Text('Marchés'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.insights_outlined),
+            tooltip: 'Tableau de bord',
+            onPressed: () => context.push('/markets/dashboard'),
+          ),
+          PopupMenuButton<_Sort>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Trier',
+            initialValue: _sort,
+            onSelected: (s) => setState(() => _sort = s),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: _Sort.recent, child: Text('Plus récents')),
+              PopupMenuItem(value: _Sort.montant, child: Text('Montant ↓')),
+            ],
+          ),
+          const LogoutButton(),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.go('/markets/new'),
         child: const Icon(Icons.add),
@@ -53,23 +81,37 @@ class _MarketsListScreenState extends State<MarketsListScreen> {
               ? const _EmptyState()
               : Builder(builder: (_) {
                   final list = _markets.where(_match).toList();
+                  switch (_sort) {
+                    case _Sort.recent:
+                      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                    case _Sort.montant:
+                      list.sort((a, b) => b.montantTotal.compareTo(a.montantTotal));
+                  }
                   return Column(
                     children: [
                       SearchField(
                         hint: 'Rechercher (client, n° marché, prestation)',
                         onChanged: (v) => setState(() => _query = v),
                       ),
+                      _StatutFilters(
+                        value: _statutFiltre,
+                        onChanged: (s) => setState(() => _statutFiltre = s),
+                      ),
                       Expanded(
                         child: list.isEmpty
                             ? const Center(child: Text('Aucun résultat', style: TextStyle(color: AppColors.s400)))
                             : RefreshIndicator(
                                 color: AppColors.g500,
-                                onRefresh: _load,
+                                onRefresh: () async {
+                                  await _load();
+                                  ref.invalidate(marketsStatsProvider);
+                                },
                                 child: ListView.separated(
                                   padding: const EdgeInsets.all(16),
                                   itemCount: list.length,
                                   separatorBuilder: (_, __) => const SizedBox(height: 8),
-                                  itemBuilder: (_, i) => _MarketTile(market: list[i]),
+                                  itemBuilder: (_, i) =>
+                                      _MarketTile(market: list[i], stat: stats[list[i].id]),
                                 ),
                               ),
                       ),
@@ -82,7 +124,8 @@ class _MarketsListScreenState extends State<MarketsListScreen> {
 
 class _MarketTile extends StatelessWidget {
   final Market market;
-  const _MarketTile({required this.market});
+  final MarketStat? stat;
+  const _MarketTile({required this.market, this.stat});
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +135,18 @@ class _MarketTile extends StatelessWidget {
       MarketStatut.termine   => AppColors.statusTermine,
       MarketStatut.suspendu  => AppColors.statusSuspendu,
     };
+
+    // Échéance proche (en cours, date de fin ≤ 7 j)
+    int? joursFin;
+    if (market.statut == MarketStatut.enCours && market.dateFin != null) {
+      final now = DateTime.now();
+      joursFin = market.dateFin!.difference(DateTime(now.year, now.month, now.day)).inDays;
+    }
+    final echeanceProche = joursFin != null && joursFin <= 7;
+
+    final pct = (stat != null && market.montantTotal > 0)
+        ? (stat!.facture / market.montantTotal).clamp(0.0, 1.0).toDouble()
+        : null;
 
     return InkWell(
       onTap: () => context.go('/markets/${market.id}'),
@@ -115,6 +170,15 @@ class _MarketTile extends StatelessWidget {
                         fontWeight: FontWeight.w700, fontSize: 14),
                   ),
                 ),
+                if (echeanceProche)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Icon(
+                      joursFin! < 0 ? Icons.event_busy : Icons.event_outlined,
+                      size: 16,
+                      color: joursFin < 0 ? AppColors.red : AppColors.orange,
+                    ),
+                  ),
                 _StatusChip(label: market.statut.label, color: statusColor),
               ],
             ),
@@ -153,8 +217,66 @@ class _MarketTile extends StatelessWidget {
                   ),
               ],
             ),
+            // Avancement de facturation
+            if (pct != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: pct,
+                        minHeight: 5,
+                        backgroundColor: AppColors.s100,
+                        color: AppColors.blue,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('${(pct * 100).toStringAsFixed(0)}% facturé',
+                      style: const TextStyle(fontSize: 9, color: AppColors.s400)),
+                ],
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _StatutFilters extends StatelessWidget {
+  final MarketStatut? value;
+  final ValueChanged<MarketStatut?> onChanged;
+  const _StatutFilters({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget chip(String label, MarketStatut? s) => Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ChoiceChip(
+            label: Text(label, style: const TextStyle(fontSize: 12)),
+            selected: value == s,
+            onSelected: (_) => onChanged(s),
+            selectedColor: AppColors.g600,
+            labelStyle: TextStyle(color: value == s ? Colors.white : AppColors.s500),
+            backgroundColor: AppColors.white,
+            side: BorderSide(color: value == s ? AppColors.g600 : AppColors.s100),
+          ),
+        );
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          chip('Tous', null),
+          chip('En cours', MarketStatut.enCours),
+          chip('En attente', MarketStatut.enAttente),
+          chip('Terminé', MarketStatut.termine),
+          chip('Suspendu', MarketStatut.suspendu),
+        ],
       ),
     );
   }
