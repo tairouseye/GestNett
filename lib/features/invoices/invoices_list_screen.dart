@@ -75,6 +75,11 @@ class _InvoicesListScreenState extends State<InvoicesListScreen>
         title: const Text('Factures'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.autorenew),
+            tooltip: 'Factures récurrentes',
+            onPressed: () => context.push('/recurrences'),
+          ),
+          IconButton(
             icon: const Icon(Icons.insights_outlined),
             tooltip: 'Tableau de bord',
             onPressed: () => context.push('/invoices/dashboard'),

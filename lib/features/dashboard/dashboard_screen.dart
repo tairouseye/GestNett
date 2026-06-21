@@ -10,6 +10,7 @@ import '../../core/utils/formatters.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/reminders_provider.dart';
+import '../../providers/recurrences_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -19,6 +20,32 @@ class DashboardScreen extends ConsumerWidget {
     final stats   = ref.watch(dashboardStatsProvider);
     final monthly = ref.watch(monthlyEncaissementsProvider);
     final profile = ref.watch(currentProfileProvider);
+
+    // Génère les factures récurrentes échues (une fois par session) et notifie.
+    ref.watch(recurrencesAutoGenProvider);
+    ref.listen<AsyncValue<int>>(recurrencesAutoGenProvider, (prev, next) {
+      final count = next.valueOrNull ?? 0;
+      if (count > 0) {
+        ref.invalidate(dashboardStatsProvider);
+        ref.invalidate(monthlyEncaissementsProvider);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(count == 1
+                  ? '1 facture récurrente générée'
+                  : '$count factures récurrentes générées'),
+              backgroundColor: AppColors.g600,
+              action: SnackBarAction(
+                label: 'Voir',
+                textColor: AppColors.white,
+                onPressed: () => context.go('/invoices'),
+              ),
+            ),
+          );
+        });
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,

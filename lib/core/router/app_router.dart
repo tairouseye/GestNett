@@ -22,6 +22,8 @@ import '../../features/employes/employe_form_screen.dart';
 import '../../features/employes/employe_detail_screen.dart';
 import '../../features/employes/rh_dashboard_screen.dart';
 import '../../features/expenses/expenses_screen.dart';
+import '../../features/recurrences/recurrences_screen.dart';
+import '../../features/recurrences/recurrence_form_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../core/shell/app_shell.dart';
@@ -154,6 +156,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/expenses',
             builder: (_, __) => const ExpensesScreen(),
+          ),
+          GoRoute(
+            path: '/recurrences',
+            builder: (_, __) => const RecurrencesScreen(),
+            routes: [
+              GoRoute(
+                path: 'new',
+                builder: (_, __) => const RecurrenceFormScreen(),
+              ),
+              GoRoute(
+                path: ':id/edit',
+                builder: (_, state) => RecurrenceFormScreen(
+                    recurrenceId: state.pathParameters['id']),
+              ),
+            ],
           ),
           GoRoute(
             path: '/notifications',
