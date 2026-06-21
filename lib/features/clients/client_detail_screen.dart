@@ -60,6 +60,23 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       .fold(0.0, (s, i) => s + i.totalTtc);
   double get _reste => _caFacture - _encaisse;
 
+  /// Message WhatsApp adapté au contexte : relance si impayé, sinon courtoisie.
+  String _waMessage() {
+    final c = _client!;
+    final name = c.contact ?? c.nom;
+    if (_reste > 0) {
+      return 'Bonjour $name,\n\n'
+          'Nous revenons vers vous concernant votre solde en attente de règlement, '
+          'd\'un montant de ${Formatters.fcfa(_reste)}.\n\n'
+          'Merci de bien vouloir procéder au règlement dès que possible.\n\n'
+          'Cordialement.';
+    }
+    return 'Bonjour $name,\n\n'
+        'Nous espérons que vous allez bien. '
+        'N\'hésitez pas à nous contacter pour toute demande.\n\n'
+        'Cordialement.';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,11 +108,16 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       ContactActions(
                         telephone: _client!.telephone,
                         email: _client!.email,
-                        waMessage: 'Bonjour ${_client!.contact ?? _client!.nom},\n\n'
-                            'Nous espérons que vous allez bien. '
-                            'N\'hésitez pas à nous contacter pour toute demande.\n\n'
-                            'Cordialement.',
+                        waMessage: _waMessage(),
                       ),
+                      if (_reste > 0)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6, left: 4),
+                          child: Text(
+                            '💬 WhatsApp contient une relance (solde dû).',
+                            style: TextStyle(fontSize: 11, color: AppColors.orange),
+                          ),
+                        ),
                       const SizedBox(height: 12),
                       _CaCard(
                         facture: _caFacture,
