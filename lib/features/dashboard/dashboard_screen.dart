@@ -329,7 +329,10 @@ class _EncaissementsChart extends StatelessWidget {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                interval: 1,
                 getTitlesWidget: (val, _) {
+                  // N'afficher qu'aux positions entières (1 étiquette / mois).
+                  if (val != val.roundToDouble()) return const SizedBox.shrink();
                   final idx = val.toInt();
                   if (idx < 0 || idx >= data.length) return const SizedBox.shrink();
                   return Text(data[idx].mois,
