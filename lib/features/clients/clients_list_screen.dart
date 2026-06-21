@@ -7,6 +7,7 @@ import '../../core/widgets/logout_button.dart';
 import '../../core/widgets/search_field.dart';
 import '../../models/client.dart';
 import '../../services/client_service.dart';
+import '../../services/excel_export_service.dart';
 import '../../providers/clients_stats_provider.dart';
 
 final _clientsProvider = FutureProvider<List<Client>>((ref) {
@@ -43,6 +44,22 @@ class _ClientsListScreenState extends ConsumerState<ClientsListScreen> {
       appBar: AppBar(
         title: const Text('Clients'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            tooltip: 'Exporter (Excel)',
+            onPressed: () async {
+              final list = ref.read(_clientsProvider).valueOrNull ?? [];
+              if (list.isEmpty) return;
+              try {
+                await ExcelExportService.exportClients(list);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erreur export : $e')));
+                }
+              }
+            },
+          ),
           PopupMenuButton<_Sort>(
             icon: const Icon(Icons.sort),
             tooltip: 'Trier',

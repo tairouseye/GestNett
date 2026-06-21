@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/logout_button.dart';
 import '../../models/expense.dart';
 import '../../models/market.dart';
 import '../../services/expense_service.dart';
 import '../../services/market_service.dart';
+import '../../services/storage_service.dart';
+import '../../services/excel_export_service.dart';
 
 final _expensesProvider = FutureProvider<List<Expense>>((ref) =>
     ExpenseService().getAll());
@@ -38,6 +42,22 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             icon: Icon(_grouped ? Icons.list_outlined : Icons.account_tree_outlined),
             tooltip: _grouped ? 'Vue liste' : 'Grouper par famille',
             onPressed: () => setState(() => _grouped = !_grouped),
+          ),
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            tooltip: 'Exporter (Excel)',
+            onPressed: () async {
+              final list = ref.read(_expensesProvider).valueOrNull ?? [];
+              if (list.isEmpty) return;
+              try {
+                await ExcelExportService.exportExpenses(list);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erreur export : $e')));
+                }
+              }
+            },
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -355,6 +375,13 @@ class _ExpenseCard extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (expense.justificatifUrl != null)
+              IconButton(
+                icon: const Icon(Icons.attach_file, size: 18, color: AppColors.g600),
+                tooltip: 'Voir le justificatif',
+                onPressed: () => launchUrl(Uri.parse(expense.justificatifUrl!),
+                    mode: LaunchMode.platformDefault),
+              ),
             Text(_fCfa(expense.montant),
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -441,9 +468,29 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
   DateTime _date = DateTime.now();
   Market? _market;
   List<Market> _markets = [];
+  String? _justUrl;
+  bool _uploadingJust = false;
   bool _loading = false;
   bool _saving = false;
   String? _error;
+
+  Future<void> _pickJustificatif() async {
+    final res = await FilePicker.platform.pickFiles(withData: true);
+    if (res == null || res.files.single.bytes == null) return;
+    setState(() => _uploadingJust = true);
+    try {
+      final url = await StorageService.uploadJustificatif(
+          res.files.single.bytes!, res.files.single.extension ?? 'jpg');
+      if (mounted) setState(() { _justUrl = url; _uploadingJust = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingJust = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur upload : $e'), backgroundColor: AppColors.red),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -484,6 +531,7 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
         type: _type,
         montant: double.parse(_montantCtrl.text.replaceAll(' ', '')),
         description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        justificatifUrl: _justUrl,
         date: _date,
         createdAt: DateTime.now(),
       ));
@@ -676,6 +724,21 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                                 side: BorderSide(color: AppColors.g100),
                               ),
                               tileColor: AppColors.g50,
+                            ),
+                            const SizedBox(height: 12),
+
+                            // ── Justificatif (photo / reçu / PDF) ──
+                            OutlinedButton.icon(
+                              onPressed: _uploadingJust ? null : _pickJustificatif,
+                              icon: _uploadingJust
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : Icon(_justUrl == null ? Icons.attach_file : Icons.check_circle, size: 18),
+                              label: Text(_justUrl == null
+                                  ? 'Joindre un justificatif'
+                                  : 'Justificatif ajouté ✓'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _justUrl == null ? AppColors.g700 : AppColors.g600,
+                              ),
                             ),
 
                             if (_error != null) ...[

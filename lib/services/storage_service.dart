@@ -37,6 +37,23 @@ class StorageService {
     return _storage.from('logos').getPublicUrl(path);
   }
 
+  /// Upload un justificatif de dépense (bucket public 'justificatifs').
+  static Future<String> uploadJustificatif(Uint8List bytes, String ext) async {
+    final clean = ext.toLowerCase() == 'jpg' ? 'jpeg' : ext.toLowerCase();
+    final path = '$_uid/${DateTime.now().millisecondsSinceEpoch}.$clean';
+    final ct = switch (clean) {
+      'pdf' => 'application/pdf',
+      'png' => 'image/png',
+      _     => 'image/jpeg',
+    };
+    await _storage.from('justificatifs').uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(contentType: ct, upsert: true),
+    );
+    return _storage.from('justificatifs').getPublicUrl(path);
+  }
+
   /// Upload un document d'employé (bucket public 'pdfs', sous-dossier employes/).
   static Future<String> uploadEmployeDoc(
       Uint8List bytes, String employeId, String ext) async {

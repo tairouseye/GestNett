@@ -237,6 +237,7 @@ class Expense {
     'montant': montant.round(),
     if (description != null && description!.isNotEmpty)
       'description': description,
+    if (justificatifUrl != null) 'justificatif_url': justificatifUrl,
     'date': date.toIso8601String().substring(0, 10),
   };
 }

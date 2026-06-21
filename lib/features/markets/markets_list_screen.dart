@@ -7,6 +7,7 @@ import '../../core/widgets/logout_button.dart';
 import '../../core/widgets/search_field.dart';
 import '../../models/market.dart';
 import '../../services/market_service.dart';
+import '../../services/excel_export_service.dart';
 import '../../providers/markets_stats_provider.dart';
 
 enum _Sort { recent, montant }
@@ -57,6 +58,22 @@ class _MarketsListScreenState extends ConsumerState<MarketsListScreen> {
             icon: const Icon(Icons.insights_outlined),
             tooltip: 'Tableau de bord',
             onPressed: () => context.push('/markets/dashboard'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            tooltip: 'Exporter (Excel)',
+            onPressed: _markets.isEmpty
+                ? null
+                : () async {
+                    try {
+                      await ExcelExportService.exportMarkets(_markets);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Erreur export : $e')));
+                      }
+                    }
+                  },
           ),
           PopupMenuButton<_Sort>(
             icon: const Icon(Icons.sort),
