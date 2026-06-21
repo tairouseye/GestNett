@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -63,6 +64,12 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               ),
             ),
           if (_invoice != null)
+            IconButton(
+              icon: const Icon(Icons.copy_outlined),
+              tooltip: 'Dupliquer',
+              onPressed: _duplicate,
+            ),
+          if (_invoice != null)
             PopupMenuButton<InvoiceStatut>(
               icon: const Icon(Icons.more_vert),
               onSelected: (s) async {
@@ -96,7 +103,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      _InvoiceInfoCard(invoice: _invoice!),
+                      _InvoiceInfoCard(
+                        invoice: _invoice!,
+                        restant: _restant,
+                        onEditEcheance: _editEcheance,
+                      ),
                       if (_invoice!.isProforma) ...[
                         const SizedBox(height: 12),
                         _ConvertProformaCard(
@@ -143,6 +154,50 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     }
   }
 
+  Future<void> _duplicate() async {
+    if (_invoice == null) return;
+    if (_invoice!.marketId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Facture sans marché : duplication impossible.')),
+      );
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Dupliquer la facture ?'),
+        content: const Text('Une nouvelle facture (datée d\'aujourd\'hui) sera créée avec les mêmes montants.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Dupliquer')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final inv = await InvoiceService().duplicate(_invoice!);
+      if (mounted) context.go('/invoices/${inv.id}');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur duplication : $e'), backgroundColor: AppColors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _editEcheance() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _invoice!.echeance,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    await InvoiceService().updateEcheance(_invoice!.id, picked);
+    await _load();
+  }
+
   Future<void> _proposeRecu(Payment payment) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -183,7 +238,13 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
 
 class _InvoiceInfoCard extends StatelessWidget {
   final Invoice invoice;
-  const _InvoiceInfoCard({required this.invoice});
+  final double restant;
+  final VoidCallback onEditEcheance;
+  const _InvoiceInfoCard({
+    required this.invoice,
+    required this.restant,
+    required this.onEditEcheance,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +299,44 @@ class _InvoiceInfoCard extends StatelessWidget {
             const Divider(height: 20),
             _Row('Numéro', invoice.numero),
             _Row('Date', Formatters.date(invoice.date)),
+            // Échéance (définitives non soldées) avec retard + édition
+            if (!invoice.isProforma && invoice.statut != InvoiceStatut.annulee)
+              Builder(builder: (_) {
+                final enRetard = restant > 0 && DateTime.now().isAfter(invoice.echeance);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 110,
+                        child: Text('Échéance',
+                            style: TextStyle(color: AppColors.s400, fontSize: 12)),
+                      ),
+                      Text(Formatters.date(invoice.echeance),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: enRetard ? AppColors.red : null)),
+                      if (enRetard)
+                        Container(
+                          margin: const EdgeInsets.only(left: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.red.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text('En retard',
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.red)),
+                        ),
+                      const Spacer(),
+                      InkWell(
+                        onTap: onEditEcheance,
+                        child: const Icon(Icons.edit_calendar_outlined, size: 18, color: AppColors.g600),
+                      ),
+                    ],
+                  ),
+                );
+              }),
             _Row('Montant HT', Formatters.fcfa(invoice.montantHt)),
             if (invoice.tvaPct > 0)
               _Row('TVA (${invoice.tvaPct.toStringAsFixed(0)}%)',

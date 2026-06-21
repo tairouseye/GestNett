@@ -10,7 +10,7 @@ class UnpaidInvoice {
   final double restant;
   const UnpaidInvoice({required this.invoice, required this.paid, required this.restant});
 
-  int get joursRetard => DateTime.now().difference(invoice.date).inDays;
+  int get joursRetard => DateTime.now().difference(invoice.echeance).inDays;
 }
 
 class InvoiceService {
@@ -63,6 +63,10 @@ class InvoiceService {
     final insertData = {
       ...invoice.toInsertMap(),
       'numero': numero,
+      // Échéance par défaut : date + 30 jours si non précisée.
+      'date_echeance': (invoice.dateEcheance ?? invoice.date.add(const Duration(days: 30)))
+          .toIso8601String()
+          .substring(0, 10),
       'created_at': DateTime.now().toIso8601String(),
       'created_by': _uid,
     };
@@ -72,6 +76,31 @@ class InvoiceService {
         .select('*, clients(nom), markets(numero)')
         .single();
     return Invoice.fromMap(data);
+  }
+
+  Future<void> updateEcheance(String id, DateTime date) async {
+    await _supabase
+        .from('invoices')
+        .update({'date_echeance': date.toIso8601String().substring(0, 10)})
+        .eq('id', id)
+        .eq('created_by', _uid);
+  }
+
+  /// Duplique une facture (nouvelle date, statut émise, nouveau numéro).
+  Future<Invoice> duplicate(Invoice src) async {
+    return create(Invoice(
+      id: '',
+      numero: '',
+      clientId: src.clientId,
+      marketId: src.marketId,
+      date: DateTime.now(),
+      montantHt: src.montantHt,
+      tvaPct: src.tvaPct,
+      totalTtc: src.totalTtc,
+      statut: InvoiceStatut.emise,
+      typeFacture: src.typeFacture,
+      createdAt: DateTime.now(),
+    ));
   }
 
   Future<void> updatePdfUrl(String id, String url) async {

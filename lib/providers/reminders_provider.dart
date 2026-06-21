@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../core/utils/formatters.dart';
 import '../models/employe.dart';
 import '../models/market.dart';
 import '../models/reminder.dart';
 import '../services/employe_service.dart';
 import '../services/evaluation_service.dart';
+import '../services/invoice_service.dart';
 import '../services/market_service.dart';
 
 /// Rappels in-app calculés à la volée à partir des données employés.
@@ -100,6 +102,22 @@ final remindersProvider = FutureProvider<List<Reminder>>((ref) async {
         severite: depasse ? ReminderSeverite.danger : ReminderSeverite.warning,
         route: '/markets/${m.id}',
         date: m.dateFin,
+      ));
+    }
+  }
+
+  // Factures en retard : définitives non soldées dont l'échéance est dépassée.
+  final unpaid = await InvoiceService().getUnpaid();
+  for (final u in unpaid) {
+    if (u.joursRetard > 0) {
+      reminders.add(Reminder(
+        titre: 'Facture en retard — ${u.invoice.numero}',
+        sousTitre: '${u.invoice.clientNom ?? ''} · ${Formatters.fcfa(u.restant)} '
+            'en retard de ${u.joursRetard} j',
+        type: ReminderType.factureEnRetard,
+        severite: ReminderSeverite.danger,
+        route: '/invoices/${u.invoice.id}',
+        date: u.invoice.echeance,
       ));
     }
   }

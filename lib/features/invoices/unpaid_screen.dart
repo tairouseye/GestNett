@@ -121,8 +121,8 @@ class _UnpaidTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final retard = item.joursRetard;
-    final enRetard = retard > 30;
+    final retard = item.joursRetard; // > 0 = échéance dépassée
+    final enRetard = retard > 0;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -166,7 +166,9 @@ class _UnpaidTile extends StatelessWidget {
                     size: 13, color: enRetard ? AppColors.red : AppColors.s400),
                 const SizedBox(width: 4),
                 Text(
-                  enRetard ? 'En retard de $retard jours' : 'Émise il y a $retard jours',
+                  enRetard
+                      ? 'En retard de $retard j'
+                      : 'Échéance dans ${-retard} j',
                   style: TextStyle(
                       fontSize: 11,
                       color: enRetard ? AppColors.red : AppColors.s400,

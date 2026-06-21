@@ -6,6 +6,7 @@ enum ReminderType {
   suiviQualite,
   valorisation,
   echeanceMarche,
+  factureEnRetard,
 }
 
 /// Rappel in-app calculé à la volée (pas stocké en base).

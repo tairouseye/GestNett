@@ -6,6 +6,7 @@ import '../../core/widgets/logout_button.dart';
 import '../../core/widgets/search_field.dart';
 import '../../models/invoice.dart';
 import '../../services/invoice_service.dart';
+import '../../services/excel_export_service.dart';
 
 class InvoicesListScreen extends StatefulWidget {
   const InvoicesListScreen({super.key});
@@ -40,8 +41,10 @@ class _InvoicesListScreenState extends State<InvoicesListScreen>
   }
 
   String _query = '';
+  InvoiceStatut? _statut;
 
   bool _match(Invoice i) {
+    if (_statut != null && i.statut != _statut) return false;
     if (_query.isEmpty) return true;
     final q = _query.toLowerCase();
     return (i.clientNom ?? '').toLowerCase().contains(q) ||
@@ -52,12 +55,49 @@ class _InvoicesListScreenState extends State<InvoicesListScreen>
   List<Invoice> get _proformas  => _all.where((i) => i.isProforma).toList();
   List<Invoice> get _definitives => _all.where((i) => !i.isProforma).toList();
 
+  Widget _statutChip(String label, InvoiceStatut? s) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(
+          label: Text(label, style: const TextStyle(fontSize: 12)),
+          selected: _statut == s,
+          onSelected: (_) => setState(() => _statut = s),
+          selectedColor: AppColors.g600,
+          labelStyle: TextStyle(color: _statut == s ? Colors.white : AppColors.s500),
+          backgroundColor: AppColors.white,
+          side: BorderSide(color: _statut == s ? AppColors.g600 : AppColors.s100),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Factures'),
-        actions: const [LogoutButton()],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.insights_outlined),
+            tooltip: 'Tableau de bord',
+            onPressed: () => context.push('/invoices/dashboard'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            tooltip: 'Exporter (Excel)',
+            onPressed: _all.isEmpty
+                ? null
+                : () async {
+                    try {
+                      await ExcelExportService.exportInvoices(_all);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Erreur export : $e')),
+                        );
+                      }
+                    }
+                  },
+          ),
+          const LogoutButton(),
+        ],
         bottom: TabBar(
           controller: _tabCtrl,
           labelColor: AppColors.g700,
@@ -81,6 +121,21 @@ class _InvoicesListScreenState extends State<InvoicesListScreen>
                 SearchField(
                   hint: 'Rechercher (client, n° facture)',
                   onChanged: (v) => setState(() => _query = v),
+                ),
+                SizedBox(
+                  height: 44,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _statutChip('Tous', null),
+                      _statutChip('Émises', InvoiceStatut.emise),
+                      _statutChip('Acompte', InvoiceStatut.payeePartiel),
+                      _statutChip('Soldées', InvoiceStatut.payee),
+                      _statutChip('Brouillons', InvoiceStatut.brouillon),
+                      _statutChip('Annulées', InvoiceStatut.annulee),
+                    ],
+                  ),
                 ),
                 Expanded(
                   child: TabBarView(

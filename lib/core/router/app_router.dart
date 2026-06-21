@@ -15,6 +15,7 @@ import '../../features/markets/markets_dashboard_screen.dart';
 import '../../features/invoices/invoices_list_screen.dart';
 import '../../features/invoices/invoice_wizard_screen.dart';
 import '../../features/invoices/invoice_detail_screen.dart';
+import '../../features/invoices/invoices_dashboard_screen.dart';
 import '../../features/invoices/unpaid_screen.dart';
 import '../../features/employes/employes_list_screen.dart';
 import '../../features/employes/employe_form_screen.dart';
@@ -106,6 +107,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/invoices',
             builder: (_, __) => const InvoicesListScreen(),
             routes: [
+              GoRoute(
+                path: 'dashboard',
+                builder: (_, __) => const InvoicesDashboardScreen(),
+              ),
               GoRoute(
                 path: 'new',
                 builder: (_, __) => const InvoiceWizardScreen(),

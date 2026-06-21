@@ -60,6 +60,7 @@ class _ReminderTile extends StatelessWidget {
       ReminderType.suiviQualite   => Icons.warning_amber_outlined,
       ReminderType.valorisation   => Icons.star_outline,
       ReminderType.echeanceMarche => Icons.event_busy_outlined,
+      ReminderType.factureEnRetard => Icons.receipt_long_outlined,
     };
     return Card(
       margin: EdgeInsets.zero,

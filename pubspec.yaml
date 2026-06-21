@@ -1,7 +1,7 @@
 name: gespro
 description: GesPro — Gestion Professionnelle PME
 publish_to: 'none'
-version: 3.18.0+70
+version: 3.19.0+71
 
 environment:
   sdk: ^3.11.5

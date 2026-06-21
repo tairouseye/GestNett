@@ -41,6 +41,7 @@ class Invoice {
   final InvoiceStatut statut;
   final String typeFacture; // 'proforma' | 'definitive'
   final String? pdfUrl;
+  final DateTime? dateEcheance;
   final DateTime createdAt;
 
   const Invoice({
@@ -58,11 +59,15 @@ class Invoice {
     required this.statut,
     this.typeFacture = 'definitive',
     this.pdfUrl,
+    this.dateEcheance,
     required this.createdAt,
   });
 
   double get montantTva  => montantHt * tvaPct / 100;
   bool   get isProforma  => typeFacture == 'proforma';
+
+  /// Échéance effective (date saisie, sinon date + 30 jours par défaut).
+  DateTime get echeance => dateEcheance ?? date.add(const Duration(days: 30));
 
   factory Invoice.fromMap(Map<String, dynamic> m) => Invoice(
     id: m['id'] as String,
@@ -85,6 +90,9 @@ class Invoice {
     statut:      InvoiceStatutExt.fromValue(m['statut'] as String? ?? 'brouillon'),
     typeFacture: m['type_facture'] as String? ?? 'definitive',
     pdfUrl:      m['pdf_url'] as String?,
+    dateEcheance: m['date_echeance'] != null
+        ? DateTime.parse(m['date_echeance'] as String)
+        : null,
     createdAt: DateTime.parse(m['created_at'] as String),
   );
 
@@ -99,5 +107,6 @@ class Invoice {
     'statut':       statut.value,
     'type_facture': typeFacture,
     if (pdfUrl != null) 'pdf_url': pdfUrl,
+    if (dateEcheance != null) 'date_echeance': dateEcheance!.toIso8601String().substring(0, 10),
   };
 }
