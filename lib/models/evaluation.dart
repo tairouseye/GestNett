@@ -46,6 +46,18 @@ class EvaluationCriteres {
   static List<EvalCritere> forType(EvaluationType t) =>
       t == EvaluationType.client ? client : superviseur;
 
+  /// Message WhatsApp prédéfini envoyé au client pour évaluer un employé.
+  static String messageClient(String employeNom) {
+    final questions = client
+        .asMap()
+        .entries
+        .map((e) => '${e.key + 1}. ${e.value.label} ? (Oui/Non)')
+        .join('\n');
+    return 'Bonjour,\n\nDans le cadre du suivi qualité, merci d\'évaluer la prestation '
+        'de $employeNom :\n\n$questions\n\n'
+        'Merci de répondre par Oui/Non pour chaque point. Cordialement.';
+  }
+
   /// Score /20 à partir des cases cochées.
   static double score(EvaluationType t, Map<String, bool> reponses) {
     final criteres = forType(t);

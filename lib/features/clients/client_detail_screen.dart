@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/contact_actions.dart';
 import '../../models/client.dart';
+import '../../models/employe.dart';
+import '../../models/evaluation.dart';
 import '../../models/invoice.dart';
 import '../../models/market.dart';
 import '../../services/client_service.dart';
+import '../../services/employe_service.dart';
 import '../../services/invoice_service.dart';
 import '../../services/market_service.dart';
 import '../../services/payment_service.dart';
@@ -24,6 +28,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   Client? _client;
   List<Market> _markets = [];
   List<Invoice> _invoices = [];
+  List<Affectation> _equipe = []; // employés affectés aux marchés du client
   double _encaisse = 0;
   bool _loading = true;
 
@@ -44,15 +49,73 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         .toList();
     final encaisse =
         await PaymentService().totalForInvoices(dues.map((i) => i.id).toList());
+    // Employés affectés (en cours) sur les marchés du client, dédupliqués.
+    final equipe = <Affectation>[];
+    final seen = <String>{};
+    for (final m in markets) {
+      final affs = await EmployeService().getByMarket(m.id);
+      for (final a in affs.where((a) => a.enCours)) {
+        if (a.employeNom != null && seen.add(a.employeId)) equipe.add(a);
+      }
+    }
     if (mounted) {
       setState(() {
         _client = client;
         _markets = markets;
         _invoices = invoices;
+        _equipe = equipe;
         _encaisse = encaisse;
         _loading = false;
       });
     }
+  }
+
+  Future<void> _envoyerEval(Affectation a) async {
+    final num = (_client?.telephone ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+    final msg = EvaluationCriteres.messageClient(a.employeNom!);
+    final url = num.isNotEmpty
+        ? 'https://wa.me/$num?text=${Uri.encodeComponent(msg)}'
+        : 'https://wa.me/?text=${Uri.encodeComponent(msg)}';
+    await launchUrl(Uri.parse(url), mode: LaunchMode.platformDefault);
+  }
+
+  Future<void> _demanderEvaluation() async {
+    if (_equipe.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucun employé affecté aux marchés de ce client.')),
+      );
+      return;
+    }
+    if (_equipe.length == 1) {
+      await _envoyerEval(_equipe.first);
+      return;
+    }
+    // Plusieurs employés : choisir lequel évaluer.
+    await showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Évaluer quel employé ?',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ),
+            ..._equipe.map((a) => ListTile(
+                  leading: const Icon(Icons.person_outline, color: AppColors.g600),
+                  title: Text(a.employeNom ?? 'Employé'),
+                  subtitle: Text(a.marketNumero ?? '', style: const TextStyle(fontSize: 11)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _envoyerEval(a);
+                  },
+                )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   double get _caFacture => _invoices
@@ -118,6 +181,18 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                             style: TextStyle(fontSize: 11, color: AppColors.orange),
                           ),
                         ),
+                      if (_equipe.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _demanderEvaluation,
+                            icon: const Icon(Icons.star_outline, size: 18),
+                            label: const Text('Demander une évaluation (WhatsApp)'),
+                            style: OutlinedButton.styleFrom(foregroundColor: AppColors.g700),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       _CaCard(
                         facture: _caFacture,

@@ -38,15 +38,7 @@ class _EvaluationFormScreenState extends State<EvaluationFormScreen> {
   double get _score => EvaluationCriteres.score(widget.type, _reponses);
 
   Future<void> _envoyerWhatsApp() async {
-    final questions = _criteres
-        .asMap()
-        .entries
-        .map((e) => '${e.key + 1}. ${e.value.label} ? (Oui/Non)')
-        .join('\n');
-    final msg =
-        'Bonjour,\n\nDans le cadre du suivi qualité, merci d\'évaluer la prestation '
-        'de ${widget.employe.nomComplet} :\n\n$questions\n\n'
-        'Merci de répondre par Oui/Non pour chaque point. Cordialement.';
+    final msg = EvaluationCriteres.messageClient(widget.employe.nomComplet);
     await launchUrl(
       Uri.parse('https://wa.me/?text=${Uri.encodeComponent(msg)}'),
       mode: LaunchMode.platformDefault,
