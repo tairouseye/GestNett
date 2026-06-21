@@ -7,11 +7,18 @@ import '../constants/app_colors.dart';
 class ContactActions extends StatelessWidget {
   final String? telephone;
   final String? email;
-  const ContactActions({super.key, this.telephone, this.email});
+  final String? waMessage; // message WhatsApp pré-rempli (optionnel)
+  const ContactActions({super.key, this.telephone, this.email, this.waMessage});
 
   String get _tel => (telephone ?? '').replaceAll(RegExp(r'[^0-9+]'), '');
   String get _waNum => (telephone ?? '').replaceAll(RegExp(r'[^0-9]'), '');
   String get _mail => (email ?? '').trim();
+
+  String get _waUrl {
+    final base = 'https://wa.me/$_waNum';
+    if (waMessage == null || waMessage!.trim().isEmpty) return base;
+    return '$base?text=${Uri.encodeComponent(waMessage!)}';
+  }
 
   Future<void> _launch(String uri) async {
     await launchUrl(Uri.parse(uri), mode: LaunchMode.platformDefault);
@@ -27,7 +34,7 @@ class ContactActions extends StatelessWidget {
         if (hasTel) _btn(Icons.call, 'Appeler', AppColors.g600, () => _launch('tel:$_tel')),
         if (hasTel) _btn(Icons.sms_outlined, 'SMS', AppColors.blue, () => _launch('sms:$_tel')),
         if (hasTel && _waNum.isNotEmpty)
-          _btn(Icons.chat, 'WhatsApp', const Color(0xFF25D366), () => _launch('https://wa.me/$_waNum')),
+          _btn(Icons.chat, 'WhatsApp', const Color(0xFF25D366), () => _launch(_waUrl)),
         if (hasMail) _btn(Icons.email_outlined, 'Email', AppColors.orange, () => _launch('mailto:$_mail')),
       ],
     );

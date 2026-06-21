@@ -91,6 +91,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       ContactActions(
                         telephone: _client!.telephone,
                         email: _client!.email,
+                        waMessage: 'Bonjour ${_client!.contact ?? _client!.nom},\n\n'
+                            'Nous espérons que vous allez bien. '
+                            'N\'hésitez pas à nous contacter pour toute demande.\n\n'
+                            'Cordialement.',
                       ),
                       const SizedBox(height: 12),
                       _CaCard(
