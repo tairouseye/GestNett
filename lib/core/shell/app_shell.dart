@@ -69,29 +69,71 @@ class _AppShellState extends State<AppShell> {
     return 0;
   }
 
+  // Seuils responsive
+  static const double _railBreakpoint = 840;  // ≥ : rail latéral au lieu de la barre du bas
+  static const double _extendedBreakpoint = 1100; // ≥ : rail étendu (icône + libellé)
+  static const double _maxContentWidth = 1200; // largeur max du contenu sur grand écran
+
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     final current  = _currentIndex(location);
+    final width    = MediaQuery.sizeOf(context).width;
+    final useRail  = width >= _railBreakpoint;
 
-    return Scaffold(
-      body: Listener(
-        onPointerDown: (_) => _onActivity(),
-        onPointerMove: (_) => _onActivity(),
-        child: GestureDetector(
-          onHorizontalDragEnd: (details) {
-            const threshold = 150.0;
-            final velocity = details.primaryVelocity ?? 0;
-            if (velocity > threshold && current > 0) {
-              context.go(_tabs[current - 1].path);
-            } else if (velocity < -threshold && current < _tabs.length - 1) {
-              context.go(_tabs[current + 1].path);
-            }
-          },
-          behavior: HitTestBehavior.translucent,
-          child: widget.child,
+    // Le swipe horizontal n'a de sens que sur mobile (barre du bas).
+    final content = Listener(
+      onPointerDown: (_) => _onActivity(),
+      onPointerMove: (_) => _onActivity(),
+      child: useRail
+          ? widget.child
+          : GestureDetector(
+              onHorizontalDragEnd: (details) {
+                const threshold = 150.0;
+                final velocity = details.primaryVelocity ?? 0;
+                if (velocity > threshold && current > 0) {
+                  context.go(_tabs[current - 1].path);
+                } else if (velocity < -threshold && current < _tabs.length - 1) {
+                  context.go(_tabs[current + 1].path);
+                }
+              },
+              behavior: HitTestBehavior.translucent,
+              child: widget.child,
+            ),
+    );
+
+    // Grand écran : rail latéral + contenu centré avec largeur maximale.
+    if (useRail) {
+      return Scaffold(
+        backgroundColor: AppColors.s50,
+        body: SafeArea(
+          child: Row(
+            children: [
+              _SideNav(
+                tabs: _tabs,
+                current: current,
+                extended: width >= _extendedBreakpoint,
+                onTap: (path) => context.go(path),
+              ),
+              const VerticalDivider(width: 1, color: AppColors.s100),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints:
+                        const BoxConstraints(maxWidth: _maxContentWidth),
+                    child: content,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+      );
+    }
+
+    // Mobile : barre de navigation en bas (comportement d'origine).
+    return Scaffold(
+      body: content,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.s100)),
@@ -146,6 +188,129 @@ class _AppShellState extends State<AppShell> {
                 );
               }),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Rail de navigation latéral (tablette / laptop).
+class _SideNav extends StatelessWidget {
+  final List<_TabItem> tabs;
+  final int current;
+  final bool extended;
+  final ValueChanged<String> onTap;
+  const _SideNav({
+    required this.tabs,
+    required this.current,
+    required this.extended,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: extended ? 220 : 76,
+      color: AppColors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 16),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: extended ? 16 : 8),
+            child: Row(
+              mainAxisAlignment:
+                  extended ? MainAxisAlignment.start : MainAxisAlignment.center,
+              children: [
+                Image.asset('assets/images/logo.png', width: 32, height: 32,
+                    errorBuilder: (_, e, s) =>
+                        const Icon(Icons.business, color: AppColors.g600)),
+                if (extended) ...[
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('GesPro',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: AppColors.g700),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              children: [
+                for (var i = 0; i < tabs.length; i++)
+                  _SideNavItem(
+                    tab: tabs[i],
+                    active: i == current,
+                    extended: extended,
+                    onTap: () => onTap(tabs[i].path),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SideNavItem extends StatelessWidget {
+  final _TabItem tab;
+  final bool active;
+  final bool extended;
+  final VoidCallback onTap;
+  const _SideNavItem({
+    required this.tab,
+    required this.active,
+    required this.extended,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? AppColors.g600 : AppColors.s400;
+    final icon = Icon(active ? tab.activeIcon : tab.icon, size: 24, color: color);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      child: Material(
+        color: active ? AppColors.g50 : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Tooltip(
+            message: extended ? '' : tab.label,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: extended ? 12 : 0, vertical: 12),
+              child: extended
+                  ? Row(
+                      children: [
+                        icon,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            tab.label,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight:
+                                  active ? FontWeight.w700 : FontWeight.w500,
+                              color: color,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Center(child: icon),
+            ),
           ),
         ),
       ),

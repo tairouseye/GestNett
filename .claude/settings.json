@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:\\\\Users\\\\bmd tech\\\\.claude\\\\projects\\\\\")",
+      "Read(//c/Users/bmd tech/.claude/**)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "PowerShell(flutter analyze lib/services/payment_service.dart lib/features/markets/market_detail_screen.dart lib/providers/dashboard_provider.dart lib/features/dashboard/dashboard_screen.dart lib/features/settings/settings_screen.dart)",
+      "Bash(git commit -m ' *)",
+      "Bash(gh run *)",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "mcp__claude_ai_Supabase__list_tables",
+      "PowerShell(flutter analyze 2>&1)",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "PowerShell($out = flutter analyze lib/models/employe.dart lib/features/employes/employe_form_screen.dart lib/features/employes/employes_list_screen.dart 2>&1 | Out-String; $errs = \\($out -split \"`n\"\\) | Where-Object { $_ -match '\\\\berror\\\\b' }; if \\($errs\\) { $errs } else { \"AUCUNE ERREUR\" })",
+      "PowerShell($out = flutter analyze 2>&1 | Out-String; $errs = \\($out -split \"`n\"\\) | Where-Object { $_ -match '\\\\berror\\\\b' }; if \\($errs\\) { $errs } else { \"AUCUNE ERREUR \\(que info/warning\\)\" })",
+      "Bash(git commit -q -m ' *)"
+    ]
+  }
+}
