@@ -23,6 +23,7 @@ class ExpensesScreen extends ConsumerStatefulWidget {
 
 class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   ExpenseType? _filterType;
+  bool _grouped = false;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +34,11 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       appBar: AppBar(
         title: const Text('Dépenses'),
         actions: [
+          IconButton(
+            icon: Icon(_grouped ? Icons.list_outlined : Icons.account_tree_outlined),
+            tooltip: _grouped ? 'Vue liste' : 'Grouper par famille',
+            onPressed: () => setState(() => _grouped = !_grouped),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(_expensesProvider),
@@ -58,25 +64,29 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           return Column(
             children: [
               _SummaryHeader(expenses: expenses, total: total),
-              _FilterChips(
-                selected: _filterType,
-                onChanged: (t) => setState(() => _filterType = t),
-              ),
-              Expanded(
-                child: filtered.isEmpty
-                    ? _EmptyState(_filterType)
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 100),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) => _ExpenseCard(
-                          expense: filtered[i],
-                          onDelete: () async {
-                            await ExpenseService().delete(filtered[i].id);
-                            ref.invalidate(_expensesProvider);
-                          },
+              if (_grouped)
+                Expanded(child: _GroupedView(expenses: expenses, total: total))
+              else ...[
+                _FilterChips(
+                  selected: _filterType,
+                  onChanged: (t) => setState(() => _filterType = t),
+                ),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? _EmptyState(_filterType)
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 100),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) => _ExpenseCard(
+                            expense: filtered[i],
+                            onDelete: () async {
+                              await ExpenseService().delete(filtered[i].id);
+                              ref.invalidate(_expensesProvider);
+                            },
+                          ),
                         ),
-                      ),
-              ),
+                ),
+              ],
             ],
           );
         },
@@ -162,6 +172,67 @@ class _SummaryHeader extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+// ── Vue groupée par famille ──────────────────────────────────────────────────
+
+class _GroupedView extends StatelessWidget {
+  final List<Expense> expenses;
+  final double total;
+  const _GroupedView({required this.expenses, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    // Totaux par famille et par rubrique.
+    final parFamille = <ExpenseFamille, double>{};
+    final parType = <ExpenseType, double>{};
+    for (final e in expenses) {
+      parFamille[e.type.famille] = (parFamille[e.type.famille] ?? 0) + e.montant;
+      parType[e.type] = (parType[e.type] ?? 0) + e.montant;
+    }
+    final familles = ExpenseFamille.values
+        .where((f) => (parFamille[f] ?? 0) > 0)
+        .toList()
+      ..sort((a, b) => (parFamille[b] ?? 0).compareTo(parFamille[a] ?? 0));
+
+    if (familles.isEmpty) return const _EmptyState(null);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+      children: familles.map((f) {
+        final fTotal = parFamille[f] ?? 0;
+        final pct = total > 0 ? fTotal / total : 0.0;
+        final types = f.types.where((t) => (parType[t] ?? 0) > 0).toList()
+          ..sort((a, b) => (parType[b] ?? 0).compareTo(parType[a] ?? 0));
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: ExpansionTile(
+            leading: CircleAvatar(
+              backgroundColor: f.color.withValues(alpha: 0.12),
+              child: Icon(f.icon, color: f.color, size: 20),
+            ),
+            title: Text(f.label,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            subtitle: Text('${(pct * 100).toStringAsFixed(0)} % du total',
+                style: const TextStyle(fontSize: 11, color: AppColors.g400)),
+            trailing: Text(_fCfa(fTotal),
+                style: TextStyle(fontWeight: FontWeight.bold, color: f.color, fontSize: 13)),
+            children: types.map((t) {
+              final tv = parType[t] ?? 0;
+              return ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.only(left: 28, right: 16),
+                leading: Icon(t.icon, color: t.color, size: 18),
+                title: Text(t.label, style: const TextStyle(fontSize: 13)),
+                trailing: Text(_fCfa(tv),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              );
+            }).toList(),
+          ),
+        );
+      }).toList(),
     );
   }
 }

@@ -137,6 +137,61 @@ extension ExpenseTypeExt on ExpenseType {
     }
     return ExpenseType.divers;
   }
+
+  ExpenseFamille get famille => switch (this) {
+    ExpenseType.salaires ||
+    ExpenseType.charges_sociales ||
+    ExpenseType.epi ||
+    ExpenseType.formation ||
+    ExpenseType.restauration => ExpenseFamille.personnel,
+    ExpenseType.produits ||
+    ExpenseType.materiel ||
+    ExpenseType.location ||
+    ExpenseType.entretien ||
+    ExpenseType.sous_traitance => ExpenseFamille.exploitation,
+    ExpenseType.transport ||
+    ExpenseType.carburant => ExpenseFamille.vehicules,
+    ExpenseType.loyer ||
+    ExpenseType.eau_electricite ||
+    ExpenseType.assurances ||
+    ExpenseType.charges_fixes ||
+    ExpenseType.communication => ExpenseFamille.locaux,
+    ExpenseType.impots ||
+    ExpenseType.frais_bancaires ||
+    ExpenseType.honoraires ||
+    ExpenseType.fournitures ||
+    ExpenseType.divers => ExpenseFamille.administratif,
+  };
+}
+
+/// Familles de regroupement des rubriques de dépenses.
+enum ExpenseFamille { personnel, exploitation, vehicules, locaux, administratif }
+
+extension ExpenseFamilleExt on ExpenseFamille {
+  String get label => switch (this) {
+    ExpenseFamille.personnel     => 'Personnel & terrain',
+    ExpenseFamille.exploitation  => 'Exploitation',
+    ExpenseFamille.vehicules     => 'Véhicules',
+    ExpenseFamille.locaux        => 'Locaux & charges',
+    ExpenseFamille.administratif => 'Administratif & financier',
+  };
+  IconData get icon => switch (this) {
+    ExpenseFamille.personnel     => Icons.groups_outlined,
+    ExpenseFamille.exploitation  => Icons.cleaning_services_outlined,
+    ExpenseFamille.vehicules     => Icons.local_shipping_outlined,
+    ExpenseFamille.locaux        => Icons.home_work_outlined,
+    ExpenseFamille.administratif => Icons.account_balance_outlined,
+  };
+  Color get color => switch (this) {
+    ExpenseFamille.personnel     => const Color(0xFF1B4F8A),
+    ExpenseFamille.exploitation  => const Color(0xFF145221),
+    ExpenseFamille.vehicules     => const Color(0xFF00838F),
+    ExpenseFamille.locaux        => const Color(0xFF37474F),
+    ExpenseFamille.administratif => const Color(0xFF6A1B9A),
+  };
+
+  List<ExpenseType> get types =>
+      ExpenseType.values.where((t) => t.famille == this).toList();
 }
 
 class Expense {
