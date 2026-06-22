@@ -22,8 +22,8 @@ final remindersProvider = FutureProvider<List<Reminder>>((ref) async {
   for (final e in employes) {
     if (e.statut == EmployeStatut.inactif) continue;
 
-    // Visite médicale de démarrage
-    if (!e.visiteMedicaleFaite) {
+    // Visite médicale de démarrage (uniquement si le poste l'exige)
+    if (e.visiteMedicaleAFaire) {
       final enRetard = e.visiteMedicaleEnRetard;
       reminders.add(Reminder(
         titre: 'Visite médicale — ${e.nomComplet}',

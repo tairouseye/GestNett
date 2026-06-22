@@ -95,6 +95,7 @@ class Employe {
   final String? notes;
   final String? superviseurId;
   final String? superviseurNom;     // dénormalisé via join
+  final bool visiteMedicaleRequise;  // ce poste exige-t-il la visite médicale ?
   final DateTime? visiteMedicaleLe;  // date effectuée (null = non faite)
   final bool aSuivre;                // note d'évaluation faible (< 10/20)
   final bool aValoriser;             // note d'évaluation excellente (≥ 16/20)
@@ -122,6 +123,7 @@ class Employe {
     this.notes,
     this.superviseurId,
     this.superviseurNom,
+    this.visiteMedicaleRequise = true,
     this.visiteMedicaleLe,
     this.aSuivre = false,
     this.aValoriser = false,
@@ -131,11 +133,18 @@ class Employe {
 
   String get nomComplet => prenom != null ? '$prenom $nom' : nom;
 
+  /// Obligation par défaut selon la catégorie : terrain (et non précisée) =
+  /// requise ; cadres (gestion/supervision) = dispensés.
+  static bool visiteRequiseDefaut(EmployeCategorie? c) =>
+      c != EmployeCategorie.gestion && c != EmployeCategorie.supervision;
+
   // ── Visite médicale de démarrage (échéance = enregistrement + 15 jours) ──
   DateTime get visiteMedicaleEcheance => createdAt.add(const Duration(days: 15));
   bool get visiteMedicaleFaite => visiteMedicaleLe != null;
+  /// Visite encore à effectuer (uniquement si le poste l'exige).
+  bool get visiteMedicaleAFaire => visiteMedicaleRequise && !visiteMedicaleFaite;
   bool get visiteMedicaleEnRetard =>
-      !visiteMedicaleFaite && DateTime.now().isAfter(visiteMedicaleEcheance);
+      visiteMedicaleAFaire && DateTime.now().isAfter(visiteMedicaleEcheance);
 
   double get fraisGestion => fraisGestionType == 'pct'
       ? salaireMensuel * fraisGestionPct / 100
@@ -169,6 +178,7 @@ class Employe {
         superviseurNom: m['superviseur'] != null
             ? _buildNom(m['superviseur'] as Map<String, dynamic>)
             : null,
+        visiteMedicaleRequise: m['visite_medicale_requise'] as bool? ?? true,
         visiteMedicaleLe: m['visite_medicale_le'] != null
             ? DateTime.parse(m['visite_medicale_le'] as String)
             : null,
@@ -203,6 +213,7 @@ class Employe {
         'statut':                statut.value,
         if (notes != null)       'notes':                notes,
         'superviseur_id':        superviseurId,
+        'visite_medicale_requise': visiteMedicaleRequise,
         'visite_medicale_le':    visiteMedicaleLe?.toIso8601String().substring(0, 10),
       };
 }

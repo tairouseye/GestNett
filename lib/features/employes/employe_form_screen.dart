@@ -48,6 +48,8 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
   // Suivi RH
   List<Employe> _superviseurs = [];
   String? _superviseurId;
+  bool _visiteRequise = true;        // ce poste exige-t-il la visite médicale ?
+  bool _visiteRequiseTouched = false; // l'utilisateur a-t-il forcé la valeur ?
   DateTime? _visiteMedicaleLe;
 
   // Photo
@@ -123,6 +125,8 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         _dateEmbauche          = e.dateEmbauche;
         _statut                = e.statut;
         _superviseurId         = e.superviseurId;
+        _visiteRequise         = e.visiteMedicaleRequise;
+        _visiteRequiseTouched  = true; // on respecte la valeur enregistrée
         _visiteMedicaleLe      = e.visiteMedicaleLe;
         _init = false;
       });
@@ -163,7 +167,8 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
         statut:               _statut,
         notes:                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
         superviseurId:        _categorie == EmployeCategorie.gestion ? null : _superviseurId,
-        visiteMedicaleLe:     _visiteMedicaleLe,
+        visiteMedicaleRequise: _visiteRequise,
+        visiteMedicaleLe:     _visiteRequise ? _visiteMedicaleLe : null,
         createdAt:            _existing?.createdAt ?? DateTime.now(),
       );
 
@@ -347,6 +352,11 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                           _metierSel = null;
                           _metierAutre = false;
                           _posteCtrl.clear();
+                        }
+                        // Pré-coche l'obligation de visite selon la catégorie,
+                        // tant que l'utilisateur ne l'a pas forcée manuellement.
+                        if (!_visiteRequiseTouched) {
+                          _visiteRequise = Employe.visiteRequiseDefaut(v);
                         }
                       }),
                     ),
@@ -590,52 +600,84 @@ class _EmployeFormScreenState extends State<EmployeFormScreen> {
                       const SizedBox(height: 12),
                     ],
 
-                    // Visite médicale de démarrage
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _visiteMedicaleLe ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime.now(),
-                        );
-                        if (picked != null) setState(() => _visiteMedicaleLe = picked);
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: InputDecorator(
-                        decoration: _deco('Visite médicale effectuée le',
-                            prefixIcon: Icons.medical_services_outlined),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _visiteMedicaleLe != null
-                                    ? DateFormat('dd/MM/yyyy').format(_visiteMedicaleLe!)
-                                    : 'Non effectuée',
-                                style: TextStyle(
-                                  color: _visiteMedicaleLe != null ? Colors.black87 : AppColors.s300,
-                                ),
-                              ),
-                            ),
-                            if (_visiteMedicaleLe != null)
-                              GestureDetector(
-                                onTap: () => setState(() => _visiteMedicaleLe = null),
-                                child: const Icon(Icons.clear, size: 18, color: AppColors.s400),
-                              ),
-                          ],
+                    // Obligation de visite médicale (selon le poste)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.g50,
+                        border: Border.all(color: AppColors.g100),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SwitchListTile.adaptive(
+                        value: _visiteRequise,
+                        activeColor: AppColors.g600,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                        secondary: const Icon(Icons.medical_services_outlined,
+                            size: 20, color: AppColors.g700),
+                        title: const Text('Visite médicale requise',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                          _visiteRequise
+                              ? 'Ce poste exige une visite médicale de démarrage.'
+                              : 'Ce poste est dispensé de visite médicale.',
+                          style: const TextStyle(fontSize: 11, color: AppColors.s500),
                         ),
+                        onChanged: (v) => setState(() {
+                          _visiteRequise = v;
+                          _visiteRequiseTouched = true;
+                          if (!v) _visiteMedicaleLe = null;
+                        }),
                       ),
                     ),
-                    if (_visiteMedicaleLe == null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6, left: 4),
-                        child: Text(
-                          _isEdit && _existing != null
-                              ? 'À effectuer avant le ${DateFormat('dd/MM/yyyy').format(_existing!.visiteMedicaleEcheance)}'
-                              : 'À effectuer dans les 15 jours suivant l\'enregistrement.',
-                          style: const TextStyle(fontSize: 11, color: AppColors.orange),
+
+                    // Date de visite médicale (seulement si requise)
+                    if (_visiteRequise) ...[
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _visiteMedicaleLe ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) setState(() => _visiteMedicaleLe = picked);
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: InputDecorator(
+                          decoration: _deco('Visite médicale effectuée le',
+                              prefixIcon: Icons.event_available_outlined),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _visiteMedicaleLe != null
+                                      ? DateFormat('dd/MM/yyyy').format(_visiteMedicaleLe!)
+                                      : 'Non effectuée',
+                                  style: TextStyle(
+                                    color: _visiteMedicaleLe != null ? Colors.black87 : AppColors.s300,
+                                  ),
+                                ),
+                              ),
+                              if (_visiteMedicaleLe != null)
+                                GestureDetector(
+                                  onTap: () => setState(() => _visiteMedicaleLe = null),
+                                  child: const Icon(Icons.clear, size: 18, color: AppColors.s400),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
+                      if (_visiteMedicaleLe == null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6, left: 4),
+                          child: Text(
+                            _isEdit && _existing != null
+                                ? 'À effectuer avant le ${DateFormat('dd/MM/yyyy').format(_existing!.visiteMedicaleEcheance)}'
+                                : 'À effectuer dans les 15 jours suivant l\'enregistrement.',
+                            style: const TextStyle(fontSize: 11, color: AppColors.orange),
+                          ),
+                        ),
+                    ],
 
                     const SizedBox(height: 20),
                     // ── Notes ────────────────────────────────────────────

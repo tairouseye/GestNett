@@ -210,8 +210,9 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
   }
 
   Future<void> _affecter() async {
-    // Pré-requis : visite médicale validée avant toute affectation.
-    if (_employe != null && !_employe!.visiteMedicaleFaite) {
+    // Pré-requis : visite médicale validée avant toute affectation
+    // (uniquement pour les postes qui l'exigent).
+    if (_employe != null && _employe!.visiteMedicaleAFaire) {
       final marquer = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -791,6 +792,36 @@ class _VisiteMedicaleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Poste dispensé : carte neutre, sans alerte ni action.
+    if (!employe.visiteMedicaleRequise) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.medical_services_outlined, color: AppColors.s400),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('Visite médicale de démarrage',
+                        style: TextStyle(fontSize: 12, color: AppColors.s400)),
+                    SizedBox(height: 2),
+                    Text('Non requise pour ce poste',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.s500)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final faite = employe.visiteMedicaleFaite;
     final enRetard = employe.visiteMedicaleEnRetard;
     final color = faite
