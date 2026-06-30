@@ -12,6 +12,7 @@ import '../../services/invoice_service.dart';
 import '../../services/payment_service.dart';
 import '../../services/pdf_service.dart';
 import '../../services/company_settings_service.dart';
+import '../../services/storage_service.dart';
 
 class InvoiceDetailScreen extends StatefulWidget {
   final String invoiceId;
@@ -58,10 +59,19 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
             IconButton(
               icon: const Icon(Icons.picture_as_pdf_outlined),
               tooltip: 'Voir PDF',
-              onPressed: () async => launchUrl(
-                Uri.parse(_invoice!.pdfUrl!),
-                mode: LaunchMode.platformDefault,
-              ),
+              onPressed: () async {
+                try {
+                  final url = await StorageService.signedPdfUrl(_invoice!.pdfUrl!);
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.platformDefault);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Ouverture du PDF impossible : $e')),
+                    );
+                  }
+                }
+              },
             ),
           if (_invoice != null)
             IconButton(

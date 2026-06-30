@@ -56,7 +56,9 @@ class InvoiceService {
         .single();
     final marketNumero = marketData['numero'] as String;
 
-    // Séquence propre à ce marché → SONATEL-MRK001-2026-0001
+    // Séquence propre à ce marché → SONATEL-MRK001-2026-0001.
+    // Compteur atomique côté serveur : sûr face aux créations concurrentes
+    // (compte partagé multi-appareils) et jamais réutilisé après suppression.
     final seq = await _nextSequenceForMarket(invoice.marketId!);
     final numero = '$marketNumero-${seq.toString().padLeft(3, '0')}';
 
@@ -169,11 +171,11 @@ class InvoiceService {
   }
 
   Future<int> _nextSequenceForMarket(String marketId) async {
-    final data = await _supabase
-        .from('invoices')
-        .select('id')
-        .eq('market_id', marketId)
-        .count();
-    return data.count + 1;
+    // Délègue à la fonction Postgres atomique (cf. migration 019).
+    final seq = await _supabase.rpc(
+      'next_invoice_seq',
+      params: {'p_market_id': marketId},
+    );
+    return (seq as num).toInt();
   }
 }

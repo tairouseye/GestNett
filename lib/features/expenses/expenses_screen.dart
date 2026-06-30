@@ -379,8 +379,20 @@ class _ExpenseCard extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.attach_file, size: 18, color: AppColors.g600),
                 tooltip: 'Voir le justificatif',
-                onPressed: () => launchUrl(Uri.parse(expense.justificatifUrl!),
-                    mode: LaunchMode.platformDefault),
+                onPressed: () async {
+                  try {
+                    final url = await StorageService
+                        .signedJustificatifUrl(expense.justificatifUrl!);
+                    await launchUrl(Uri.parse(url),
+                        mode: LaunchMode.platformDefault);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Ouverture impossible : $e')),
+                      );
+                    }
+                  }
+                },
               ),
             Text(_fCfa(expense.montant),
                 style: TextStyle(

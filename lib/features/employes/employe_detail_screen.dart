@@ -385,8 +385,19 @@ class _EmployeDetailScreenState extends State<EmployeDetailScreen> {
                       _DocumentsCard(
                         documents: _documents,
                         onAdd: _addDocument,
-                        onOpen: (d) => launchUrl(Uri.parse(d.url),
-                            mode: LaunchMode.platformDefault),
+                        onOpen: (d) async {
+                          try {
+                            final url = await StorageService.signedPdfUrl(d.url);
+                            await launchUrl(Uri.parse(url),
+                                mode: LaunchMode.platformDefault);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Ouverture impossible : $e')),
+                              );
+                            }
+                          }
+                        },
                         onDelete: _deleteDocument,
                       ),
                       const SizedBox(height: 80),

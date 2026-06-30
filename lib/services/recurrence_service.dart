@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/recurrence.dart';
 import '../models/invoice.dart';
@@ -81,6 +82,15 @@ class RecurrenceService {
     var totalCreated = 0;
 
     for (final r in recurrences) {
+      // Claim atomique : une seule génération par récurrence et par jour, tous
+      // appareils confondus (compte partagé). Si un autre appareil l'a déjà
+      // générée aujourd'hui, on passe.
+      final claimed = await _supabase.rpc(
+        'claim_recurrence',
+        params: {'p_id': r.id, 'p_today': todayStr},
+      );
+      if (claimed != true) continue;
+
       var prochaine = r.prochaineDate;
       var generatedForThis = false;
       var safety = 0;
@@ -103,7 +113,7 @@ class RecurrenceService {
         await invoiceService.create(inv);
         totalCreated++;
         generatedForThis = true;
-        prochaine = _addMonths(prochaine, r.frequence.mois, r.jourDuMois);
+        prochaine = addMonths(prochaine, r.frequence.mois, r.jourDuMois);
       }
 
       if (generatedForThis) {
@@ -119,7 +129,8 @@ class RecurrenceService {
 
   /// Ajoute [months] mois à [from] en plaçant le jour à [jour] (borné au
   /// dernier jour du mois cible, et au max 28 par construction).
-  DateTime _addMonths(DateTime from, int months, int jour) {
+  @visibleForTesting
+  static DateTime addMonths(DateTime from, int months, int jour) {
     final total = from.year * 12 + (from.month - 1) + months;
     final year = total ~/ 12;
     final month = total % 12 + 1;
