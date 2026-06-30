@@ -1,11 +1,11 @@
 {
-    "name": "GestNett",
-    "short_name": "GestNett",
+    "name": "GesNett",
+    "short_name": "GesNett",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#145221",
     "theme_color": "#145221",
-    "description": "A new Flutter project.",
+    "description": "GesNett — Gestion professionnelle",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
