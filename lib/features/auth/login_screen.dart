@@ -298,7 +298,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _verifyOtpAndLogin() async {
     final code = _codeCtrl.text.trim();
     if (code.length < 6) {
-      setState(() => _error = 'Entrez le code à 6 chiffres reçu par email');
+      setState(() => _error = 'Entrez le code reçu par email');
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -338,7 +338,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const Icon(Icons.mark_email_read_outlined, color: AppColors.g600, size: 18),
             const SizedBox(width: 8),
             Expanded(
-              child: Text('Code à 6 chiffres envoyé à\n$_forgotEmail',
+              child: Text('Code de vérification envoyé à\n$_forgotEmail',
                   style: const TextStyle(color: AppColors.g700, fontSize: 12)),
             ),
           ]),
@@ -348,16 +348,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           controller: _codeCtrl,
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
-          maxLength: 6,
+          maxLength: 8,
           autofocus: true,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           onFieldSubmitted: (_) => _verifyOtpAndLogin(),
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 10),
+          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 8),
           decoration: const InputDecoration(
             labelText: 'Code reçu',
             counterText: '',
-            hintText: '· · · · · ·',
-            hintStyle: TextStyle(letterSpacing: 8, fontSize: 22, color: AppColors.g300),
+            hintText: 'Code reçu par email',
+            hintStyle: TextStyle(letterSpacing: 0, fontSize: 16, color: AppColors.g300),
           ),
         ),
         _ErrorBox(_error),
