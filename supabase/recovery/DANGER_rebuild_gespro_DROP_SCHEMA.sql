@@ -266,6 +266,7 @@ CREATE TABLE IF NOT EXISTS public.company_settings (
   description  text,
   adresse      text,
   telephone    text,
+  telephone2   text,
   email        text,
   logo_url     text,
   signature_url text,
